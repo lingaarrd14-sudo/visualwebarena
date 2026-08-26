@@ -147,3 +147,7 @@ config_files/wa/test_webarena/*
 
 cache/*
 agents/prompts/jsons/*
+
+# Local benchmark outputs
+official_compat_test*/
+log_files/
