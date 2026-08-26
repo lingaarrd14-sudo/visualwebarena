@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 from typing import Any, Optional
 
 import tiktoken
@@ -115,8 +116,18 @@ class PromptAgent(Agent):
         self.action_set_tag = action_set_tag
         self.captioning_fn = captioning_fn
 
-        # Check if the model is multimodal.
-        if ("gemini" in lm_config.model or "gpt-4" in lm_config.model and "vision" in lm_config.model) and type(prompt_constructor) == MultimodalCoTPromptConstructor:
+        # Check if the model is multimodal.  The original benchmark only
+        # recognized the historical ``gpt-4-vision-preview`` name.  Gateways
+        # may expose a vision-capable model under a different name, so allow
+        # the caller to opt into the same image-input path explicitly.
+        forced_multimodal = os.environ.get("VWA_MULTIMODAL", "").lower() in {
+            "1", "true", "yes"
+        }
+        known_multimodal = (
+            "gemini" in lm_config.model
+            or ("gpt-4" in lm_config.model and "vision" in lm_config.model)
+        )
+        if (known_multimodal or forced_multimodal) and type(prompt_constructor) == MultimodalCoTPromptConstructor:
             self.multimodal_inputs = True
         else:
             self.multimodal_inputs = False
