@@ -257,7 +257,7 @@ def generate_from_openai_chat_completion(
     response = client.chat.completions.create(
         model=model,
         messages=messages,
-        temperature=temperature,
+        #temperature=temperature,
         max_completion_tokens=max_tokens, #내가 수정 max_tokens-> max_completion_tokens, top_k 제거
     )
     answer: str = response.choices[0].message.content
