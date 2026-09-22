@@ -87,10 +87,17 @@ If using OpenAI models, set a valid OpenAI API key (starting with `sk-`) as the 
 export OPENAI_API_KEY=your_key
 ```
 
-If using Gemini, first install the [gcloud CLI](https://cloud.google.com/sdk/docs/install). Configure the API key by authenticating with Google Cloud:
+For the Gemini Developer API, configure an API key:
 ```
-gcloud auth login
-gcloud config set project <your_project_name>
+export GEMINI_API_KEY=your_key
+```
+
+Alternatively, to use Gemini through Vertex AI, install the [gcloud CLI](https://cloud.google.com/sdk/docs/install), configure Application Default Credentials, and select a project:
+```
+gcloud auth application-default login
+export GOOGLE_GENAI_USE_VERTEXAI=True
+export GOOGLE_CLOUD_PROJECT=<your_project_name>
+export GOOGLE_CLOUD_LOCATION=global
 ```
 
 6. Launch the evaluation. For example, to reproduce our GPT-3.5 captioning baseline:
@@ -130,9 +137,11 @@ python run.py \
   --max_steps 1 \
   --result_dir <your_result_dir> \
   --test_config_base_dir=config_files/vwa/test_classifieds \
-  --provider google  --model gemini --mode completion  --max_obs_length 15360 \
+  --provider google  --model gemini-3.8-flash  --mode completion  --max_obs_length 15360 \
   --action_set_tag som  --observation_type image_som
 ```
+
+The GPT and Gemini paths both default to seed 42, medium reasoning, and 384 output tokens. Upstream VisualWebArena uses a global `max_obs_length` default of 3840 and explicitly passes 15360 in its Gemini example because that path counts characters. This fork applies those effective provider-specific values when `--max_obs_length` is omitted.
 
 If you'd like to reproduce the results from our paper, we have also provided scripts in `scripts/` to run the full evaluation pipeline on each of the VWA environments. For example, to reproduce the results from the Classifieds environment, you can run:
 

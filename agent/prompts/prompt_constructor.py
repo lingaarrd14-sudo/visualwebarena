@@ -6,7 +6,7 @@ from PIL import Image
 
 from browser_env import Action, ActionParsingError, Trajectory
 from browser_env.env_config import URL_MAPPINGS
-from browser_env.utils import StateInfo, pil_to_b64, pil_to_vertex
+from browser_env.utils import StateInfo, pil_to_b64, pil_to_gemini #renwer method name pill_to_vetex -> to_gemini
 from llms import lm_config
 from llms.tokenizers import Tokenizer
 from llms.utils import APIInput
@@ -414,7 +414,7 @@ class MultimodalCoTPromptConstructor(CoTPromptConstructor):
                         [
                             "IMAGES:",
                             "(1) current page screenshot:",
-                            pil_to_vertex(example_img),
+                            pil_to_gemini(example_img),
                         ]
                     )
                     message.append(f"Action: {y}")
@@ -424,14 +424,14 @@ class MultimodalCoTPromptConstructor(CoTPromptConstructor):
                     [
                         "IMAGES:",
                         "(1) current page screenshot:",
-                        pil_to_vertex(page_screenshot_img),
+                        pil_to_gemini(page_screenshot_img),
                     ]
                 )
                 for image_i, image in enumerate(images):
                     message.extend(
                         [
                             f"({image_i+2}) input image {image_i+1}",
-                            pil_to_vertex(image),
+                            pil_to_gemini(image),
                         ]
                     )
                 message.append("Action:")

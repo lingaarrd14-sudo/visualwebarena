@@ -1,8 +1,8 @@
 """This module is adapt from https://github.com/zeno-ml/zeno-build"""
-try:
-    from .providers.gemini_utils import generate_from_gemini_completion
-except:
-    print('Google Cloud not set up, skipping import of providers.gemini_utils.generate_from_gemini_completion')
+# The google-genai client is created lazily when Gemini is called, so importing
+# this module does not require Google Cloud credentials. Avoid a broad except
+# here because it would also hide missing dependencies and programming errors.
+from .providers.gemini_utils import generate_from_gemini_completion
 
 from .providers.hf_utils import generate_from_huggingface_completion
 from .providers.openai_utils import (

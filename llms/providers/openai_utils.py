@@ -12,9 +12,36 @@ import aiolimiter
 import openai
 from openai import AsyncOpenAI, OpenAI
 
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"], base_url=os.environ.get("OPENAI_BASE_URL"))
-aclient = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"], base_url=os.environ.get("OPENAI_BASE_URL"))
 from tqdm.asyncio import tqdm_asyncio
+
+client: OpenAI | None = None
+aclient: AsyncOpenAI | None = None
+
+
+def _get_openai_client() -> OpenAI: # Keep OpenAI initialization lazy for Gemini-only runs.
+    """Create the OpenAI client only when GPT is actually called.
+
+    Gemini support imports this module through ``llms`` as well. Lazy
+    initialization lets Gemini-only runs start without an OpenAI API key.
+    """
+    global client
+    if client is None:
+        client = OpenAI(
+            api_key=os.environ["OPENAI_API_KEY"],
+            base_url=os.environ.get("OPENAI_BASE_URL"),
+        )
+    return client
+
+
+def _get_async_openai_client() -> AsyncOpenAI: # Keep OpenAI initialization lazy for Gemini-only runs.
+    """Lazily create the async client for the same Gemini isolation reason."""
+    global aclient
+    if aclient is None:
+        aclient = AsyncOpenAI(
+            api_key=os.environ["OPENAI_API_KEY"],
+            base_url=os.environ.get("OPENAI_BASE_URL"),
+        )
+    return aclient
 
 
 def retry_with_exponential_backoff(  # type: ignore
@@ -77,7 +104,7 @@ async def _throttled_openai_completion_acreate(
     async with limiter:
         for _ in range(3):
             try:
-                return await aclient.completions.create(
+                return await _get_async_openai_client().completions.create(
                     engine=engine,
                     prompt=prompt,
                     temperature=temperature,
@@ -153,7 +180,7 @@ def generate_from_openai_completion(
             "OPENAI_API_KEY environment variable must be set when using OpenAI API."
         )
 
-    response = client.completions.create(
+    response = _get_openai_client().completions.create(
         prompt=prompt,
         engine=engine,
         temperature=temperature,
@@ -176,14 +203,16 @@ async def _throttled_openai_chat_completion_acreate(
     async with limiter:
         for _ in range(3):
             try:
-                return await aclient.chat.completions.create(
+                # Keep OpenAI initialization lazy for Gemini-only runs.
+                return await _get_async_openai_client().chat.completions.create(
                     model=model,
                     messages=messages,
-                    # GPT-5.6 Luna Chat Completions parameters:
-                    # use max_completion_tokens, seed, reasoning_effort and omit temperature/top_p.
+                    # GPT-5.6 migration: use max_completion_tokens and medium
+                    # reasoning instead of the previous sampling parameters.
+                    # Fix seed=42 to improve benchmark reproducibility.
                     max_completion_tokens=max_tokens,
                     reasoning_effort="medium",
-                    seed=42
+                    seed=42,
                 )
             except openai.RateLimitError:
                 logging.warning(
@@ -256,14 +285,16 @@ def generate_from_openai_chat_completion(
         raise ValueError(
             "OPENAI_API_KEY environment variable must be set when using OpenAI API."
         )
-    response = client.chat.completions.create(
+    # Keep OpenAI initialization lazy for Gemini-only runs.
+    response = _get_openai_client().chat.completions.create(
         model=model,
         messages=messages,
-        # GPT-5.6 Luna Chat Completions parameters:
-        # use max_completion_tokens, seed, reasoning_effort and omit temperature/top_p.
+        # GPT-5.6 migration: use max_completion_tokens and medium reasoning
+        # instead of the previous sampling parameters. Fix seed=42 to improve
+        # benchmark reproducibility.
         max_completion_tokens=max_tokens,
         reasoning_effort="medium",
-        seed=42
+        seed=42,
     )
     answer: str = response.choices[0].message.content
     return answer

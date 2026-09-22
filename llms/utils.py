@@ -1,13 +1,12 @@
 import argparse
 from typing import Any
 
-try:
-    from vertexai.preview.generative_models import Image
-    from llms import generate_from_gemini_completion
-except:
-    print('Google Cloud not set up, skipping import of vertexai.preview.generative_models.Image and llms.generate_from_gemini_completion')
+# The google-genai SDK represents multimodal inputs with Part instead of the
+# legacy vertexai.preview.generative_models.Image class.
+from google.genai import types as genai_types
 
 from llms import (
+    generate_from_gemini_completion,
     generate_from_huggingface_completion,
     generate_from_openai_chat_completion,
     generate_from_openai_completion,
@@ -61,14 +60,12 @@ def call_llm(
     elif lm_config.provider == "google":
         assert isinstance(prompt, list)
         assert all(
-            [isinstance(p, str) or isinstance(p, Image) for p in prompt]
+            [isinstance(p, str) or isinstance(p, genai_types.Part) for p in prompt]
         )
         response = generate_from_gemini_completion(
             prompt=prompt,
             engine=lm_config.model,
-            temperature=lm_config.gen_config["temperature"],
             max_tokens=lm_config.gen_config["max_tokens"],
-            top_p=lm_config.gen_config["top_p"],
         )
     else:
         raise NotImplementedError(

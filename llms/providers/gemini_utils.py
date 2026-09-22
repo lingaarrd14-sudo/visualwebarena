@@ -1,105 +1,117 @@
-"""Tools to generate from Gemini prompts."""
+"""Tools to generate responses with the Google Gen AI SDK."""
 
 import random
 import time
-from typing import Any
+from functools import lru_cache
 
-from google.api_core.exceptions import InvalidArgument
-from vertexai.preview.generative_models import (
-    GenerativeModel,
-    HarmBlockThreshold,
-    HarmCategory,
-    Image,
-)
+from google import genai
+from google.genai import errors, types
 
-model = GenerativeModel("gemini-pro-vision")
+
+@lru_cache(maxsize=1)
+def _get_client() -> genai.Client:
+    """Create and reuse the client only when Gemini is actually called.
+
+    The old Vertex AI module created its model while the module was imported.
+    Lazy creation lets non-Gemini runs import ``llms`` without Google
+    credentials. ``genai.Client`` reads either a Gemini API key or the Vertex
+    AI environment variables documented in the README.
+    """
+    return genai.Client()
 
 
 def retry_with_exponential_backoff(  # type: ignore
     func,
     initial_delay: float = 1,
-    exponential_base: float = 1,
+    exponential_base: float = 2,
     jitter: bool = True,
-    max_retries: int = 10,
-    errors: tuple[Any] = (InvalidArgument,),
+    max_retries: int = 3,
 ):
-    """Retry a function with exponential backoff."""
+    """Retry only rate limits and transient server failures.
+
+    Invalid requests are raised immediately because retrying them with the
+    same prompt and configuration cannot succeed. The base-2 backoff and
+    three-retry default match the OpenAI provider's retry policy.
+    """
 
     def wrapper(*args, **kwargs):  # type: ignore
-        # Initialize variables
         num_retries = 0
         delay = initial_delay
 
-        # Loop until a successful response or max_retries is hit or an exception is raised
         while True:
             try:
-
                 return func(*args, **kwargs)
+            except errors.APIError as exc:
+                if exc.code not in {429, 500, 502, 503, 504}:
+                    raise
 
-            # Retry on specified errors
-            except errors as e:
-                # Increment retries
                 num_retries += 1
-
-                # Check if max retries has been reached
                 if num_retries > max_retries:
-                    raise Exception(
+                    raise RuntimeError(
                         f"Maximum number of retries ({max_retries}) exceeded."
-                    )
+                    ) from exc
 
-                # Increment the delay
                 delay *= exponential_base * (1 + jitter * random.random())
-
-                # Sleep for the delay
                 time.sleep(delay)
-
-            # Raise exceptions for any errors not specified
-            except Exception as e:
-                raise e
 
     return wrapper
 
 
 @retry_with_exponential_backoff
 def generate_from_gemini_completion(
-    prompt: list[str | Image],
+    prompt: list[str | types.Part],
     engine: str,
-    temperature: float,
     max_tokens: int,
-    top_p: float,
 ) -> str:
-    del engine
-    safety_config = {
-        HarmCategory.HARM_CATEGORY_UNSPECIFIED: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-    }
-    response = model.generate_content(
-        prompt,
-        generation_config=dict(
-            candidate_count=1,
-            max_output_tokens=max_tokens,
-            top_p=top_p,
-            temperature=temperature,
+    """Generate a multimodal response with the model selected by the CLI.
+
+    The ``completion`` name is retained for VisualWebArena compatibility; the
+    current SDK sends both text and image parts through ``generate_content``.
+    """
+    # Preserve VisualWebArena's BLOCK_ONLY_HIGH thresholds for its four
+    # concrete harm categories; the old UNSPECIFIED entry was not a rule.
+    safety_config = [
+        types.SafetySetting(
+            category="HARM_CATEGORY_HATE_SPEECH",
+            threshold="BLOCK_ONLY_HIGH",
+        ),
+        types.SafetySetting(
+            category="HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold="BLOCK_ONLY_HIGH",
+        ),
+        types.SafetySetting(
+            category="HARM_CATEGORY_HARASSMENT",
+            threshold="BLOCK_ONLY_HIGH",
+        ),
+        types.SafetySetting(
+            category="HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold="BLOCK_ONLY_HIGH",
+        ),
+    ]
+
+    generation_config = types.GenerateContentConfig(
+        # Match the GPT baseline: use the same output budget, fixed seed, and
+        # medium reasoning. Sampling parameters are intentionally omitted.
+        max_output_tokens=max_tokens,
+        seed=42,
+        thinking_config=types.ThinkingConfig(
+            thinking_level="medium",
         ),
         safety_settings=safety_config,
     )
-    answer = response.text
-    return answer
+
+    # Unlike the old hard-coded gemini-pro-vision instance, this uses the
+    # model passed through --model (for example, gemini-3.8-flash).
+    response = _get_client().models.generate_content(
+        model=engine,
+        contents=prompt,
+        config=generation_config,
+    )
+    # response.text can be absent when Gemini returns no text candidate.
+    if response.text is None:
+        raise RuntimeError("Gemini returned no text response.")
+    return response.text
 
 
-@retry_with_exponential_backoff
-# debug only
-def fake_generate_from_gemini_chat_completion(
-    messages: list[dict[str, str]],
-    model: str,
-    temperature: float,
-    max_tokens: int,
-    top_p: float,
-    context_length: int,
-    stop_token: str | None = None,
-) -> str:
-    answer = "Let's think step-by-step. This page shows a list of links and buttons. There is a search box with the label 'Search query'. I will click on the search box to type the query. So the action I will perform is \"click [60]\"."
-    return answer
+# Removed the legacy fake_generate_from_gemini_chat_completion helper: it was
+# an unused debug stub, and VisualWebArena's Gemini path supports completion.

@@ -6,12 +6,10 @@ from typing import Any, Dict, TypedDict, Union
 import numpy as np
 import numpy.typing as npt
 from beartype import beartype
+# google-genai is now a required dependency, and creating a Part does not
+# require Google Cloud authentication, so we deleted the legacy optional import.
+from google.genai import types as genai_types
 from PIL import Image
-
-try:
-    from vertexai.preview.generative_models import Image as VertexImage
-except:
-    print('Google Cloud not set up, skipping import of vertexai.preview.generative_models.Image')
 
 
 @dataclass
@@ -41,12 +39,16 @@ def pil_to_b64(img: Image.Image) -> str:
     return img_b64
 
 
-def pil_to_vertex(img: Image.Image) -> str:
+def pil_to_gemini(img: Image.Image) -> genai_types.Part:
+    """Wrap a PNG for google-genai's multimodal generate_content input.
+
+    The legacy Vertex AI SDK used ``VertexImage.from_bytes``; google-genai
+    expects the bytes and MIME type in a ``Part`` instead.
+    """
     with BytesIO() as image_buffer:
         img.save(image_buffer, format="PNG")
         byte_data = image_buffer.getvalue()
-        img_vertex = VertexImage.from_bytes(byte_data)
-    return img_vertex
+    return genai_types.Part.from_bytes(data=byte_data, mime_type="image/png")
 
 
 class DOMNode(TypedDict):

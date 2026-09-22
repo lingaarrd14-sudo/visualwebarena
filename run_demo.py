@@ -160,10 +160,9 @@ def config() -> argparse.Namespace:
         "--max_obs_length",
         type=int,
         help="when not zero, will truncate the observation to this length before feeding to the model",
-        default=3840,
+        # Resolved by provider in construct_llm_config.
+        default=None,
     )
-
-
     # example config
     parser.add_argument("--start_url", type=str, default="https://google.com")
     parser.add_argument("--intent", type=str, required=True)
