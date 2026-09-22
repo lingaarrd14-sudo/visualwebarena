@@ -1,187 +1,265 @@
-# VisualWebArena: Evaluating Multimodal Agents on Realistic Visual Web Tasks
-<!-- <p align="center">
-<a href="https://www.python.org/downloads/release/python-3109/"><img src="https://img.shields.io/badge/python-3.10-blue.svg" alt="Python 3.10"></a>
-<a href="https://pre-commit.com/"><img src="https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white" alt="pre-commit"></a>
-<a href="https://github.com/psf/black"><img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code style: black"></a>
-<a href="https://mypy-lang.org/"><img src="https://www.mypy-lang.org/static/mypy_badge.svg" alt="Checked with mypy"></a>
-<a href="https://beartype.readthedocs.io"><img src="https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg" alt="bear-ified"></a>
-</p> -->
+# VisualWebArena Viewport Benchmark
 
-[<a href="https://jykoh.com/vwa">Website</a>] 
-[<a href="https://arxiv.org/abs/2401.13649">Paper</a>]
+This repository is an experimental fork of
+[VisualWebArena](https://github.com/web-arena-x/visualwebarena). It uses the
+original VisualWebArena tasks, websites, browser environment, and evaluators to
+measure how browser viewport dimensions affect a multimodal web agent's task
+success and trajectory.
 
-<i>VisualWebArena</i> is a realistic and diverse benchmark for evaluating multimodal autonomous language agents. It comprises of a set of diverse and complex web-based visual tasks that evaluate various capabilities of autonomous multimodal agents. It builds off the reproducible, execution based evaluation introduced in <a href="https://webarena.dev" target="_blank">WebArena</a>.
+This is not a replacement for the upstream benchmark. For the original project
+description, released trajectories, and baseline results, see the
+[upstream repository](https://github.com/web-arena-x/visualwebarena),
+[project website](https://jykoh.com/vwa), and
+[paper](https://arxiv.org/abs/2401.13649).
 
-![Overview](media/overview.png)
+![VisualWebArena overview](media/overview.png)
 
-## TODOs
-- [x] Add human trajectories.
-- [x] Add GPT-4V + SoM trajectories from our paper.
-- [x] Add scripts for end-to-end training and reset of environments.
-- [x] Add demo to run multimodal agents on any arbitrary webpage.
+## Research scope
 
-## News
-- [08/05/2024]: Added an [Amazon Machine Image](environment_docker/README.md#pre-installed-amazon-machine-image) that pre-installed all VWA (and WA) websites so that you don't have to!
-- [03/08/2024]: Added the [agent trajectories](https://drive.google.com/file/d/1-tKz5ByWa1-jwtejiFgxli8fZcBPZgAE/view?usp=sharing) of our GPT-4V + SoM agent on the full set of 910 VWA tasks.
-- [02/14/2024]: Added a [demo script](run_demo.py) for running the GPT-4V + SoM agent on any task on an arbitrary website.
-- [01/25/2024]: GitHub repo released with tasks and scripts for setting up the VWA environments.
+The main experimental variable in this fork is the browser viewport:
 
-## Install
+- `--viewport_width`
+- `--viewport_height`
+
+All other conditions should remain fixed between paired runs. The current
+`run.py` always sets `current_viewport_only=True`, so the agent observes the
+current viewport rather than the full page. The `--current_viewport_only` CLI
+flag therefore does not define a separate condition in this fork.
+
+For a clean viewport-height experiment, keep the width fixed and compare, for
+example, `1280x720` against `1280x2048`. Use a separate result directory for
+every condition.
+
+| Change between runs | Keep fixed between runs |
+| --- | --- |
+| Viewport width and/or height | Task IDs and site snapshot |
+| Nothing else | Model and provider |
+|  | Prompt, action set, and observation type |
+|  | Step and output-token budgets |
+|  | Evaluation model and environment URLs |
+
+Remote model APIs can remain nondeterministic even with a fixed seed. For a
+formal comparison, repeat each condition and report both aggregate success
+rates and paired per-task outcome changes.
+
+## What differs from upstream
+
+- The benchmark is organized around paired viewport-size experiments.
+- OpenAI and Gemini integrations use current SDK interfaces.
+- Gemini uses `google-genai` instead of the legacy Vertex AI generative-model
+  classes.
+- Provider clients are initialized lazily, so a Gemini-only agent run does not
+  require an OpenAI key at import time.
+- OpenAI chat and Gemini generation use seed `42`, medium reasoning, and a
+  default output budget of 384 tokens.
+- Dependencies are curated for the current Python 3.10/3.11 code instead of
+  reproducing the upstream environment's complete historical `pip freeze`.
+
+The task definitions, browser interaction logic, website setup, prompt assets,
+trajectory rendering, and success evaluators remain based on VisualWebArena.
+
+## Installation
+
+Python 3.10 or 3.11 is recommended.
+
 ```bash
-# Python 3.10 (or 3.11, but not 3.12 cause 3.12 deprecated distutils needed here)
-python -m venv venv
-source venv/bin/activate
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
 pip install -r requirements.txt
-playwright install
+playwright install chromium
 pip install -e .
 ```
 
-You can also run the unit tests to ensure that VisualWebArena is installed correctly:
+The last command should be `pip install -e .`, not `pip install -e ".[dev]"`.
+The legacy development extra in `setup.cfg` still contains upstream test-tool
+pins, while `requirements.txt` describes the environment used by this fork.
+
+Check the Python dependency graph with:
+
+```bash
+python -m pip check
 ```
-pytest -x
-```
 
+## Website environment
 
-## End-to-end Evaluation
-1. Setup the standalone environments.
-Please check out [this page](environment_docker/README.md) for details.
+Set up the standalone VisualWebArena websites by following
+[environment_docker/README.md](environment_docker/README.md). Then configure
+the benchmark process with URLs for that deployment:
 
-2. Configurate the urls for each website.
-First, export the `DATASET` to be `visualwebarena`:
 ```bash
 export DATASET=visualwebarena
-```
-Then, set the URL for the websites
-
-```bash
-export CLASSIFIEDS="<your_classifieds_domain>:9980"
-export CLASSIFIEDS_RESET_TOKEN="4b61655535e7ed388f0d40a93600254c"  # Default reset token for classifieds site, change if you edited its docker-compose.yml
-export SHOPPING="<your_shopping_site_domain>:7770"
-export REDDIT="<your_reddit_domain>:9999"
-export WIKIPEDIA="<your_wikipedia_domain>:8888"
-export HOMEPAGE="<your_homepage_domain>:4399"
+export CLASSIFIEDS="http://<host>:9980"
+export CLASSIFIEDS_RESET_TOKEN="<reset-token>"
+export SHOPPING="http://<host>:7770"
+export REDDIT="http://<host>:9999"
+export WIKIPEDIA="http://<host>:8888/wikipedia_en_all_maxi_2022-05/A/User:The_other_Kiwix_guy/Landing"
+export HOMEPAGE="http://<host>:4399"
 ```
 
-In addition, if you want to run on the original WebArena tasks, make sure to also set up the [CMS](https://github.com/web-arena-x/webarena/blob/main/environment_docker/README.md#e-commerce-content-management-system-cms), [GitLab](https://github.com/web-arena-x/webarena/blob/main/environment_docker/README.md#gitlab-website), and [map](https://github.com/web-arena-x/webarena/blob/main/environment_docker/README.md#map) environments, and then set their respective environment variables:
-```bash
-export SHOPPING_ADMIN="<your_e_commerce_cms_domain>:7780/admin"
-export GITLAB="<your_gitlab_domain>:8023"
-export MAP="<your_map_domain>:3000"
-```
+Generate per-task configuration files and login cookies after the URLs are set:
 
-3. Generate config files for each test example:
 ```bash
 python scripts/generate_test_data.py
-```
-You will see `*.json` files generated in the [config_files](./config_files) folder. Each file contains the configuration for one test example.
-
-4. Obtain and save the auto-login cookies for all websites:
-```
 bash prepare.sh
 ```
 
-5. Set up API keys.
+Generated task directories are:
 
-If using OpenAI models, set a valid OpenAI API key (starting with `sk-`) as the environment variable:
-```
-export OPENAI_API_KEY=your_key
+- `config_files/vwa/test_classifieds` — 234 tasks
+- `config_files/vwa/test_reddit` — 210 tasks
+- `config_files/vwa/test_shopping` — 466 tasks
+
+Together they contain the 910 VisualWebArena tasks. CLI ranges are half-open:
+`--test_start_idx 0 --test_end_idx 10` runs task files `0.json` through
+`9.json`.
+
+## Model credentials
+
+For Gemini Developer API access:
+
+```bash
+export GEMINI_API_KEY="<api-key>"
 ```
 
-For the Gemini Developer API, configure an API key:
-```
-export GEMINI_API_KEY=your_key
-```
+For Gemini through Vertex AI:
 
-Alternatively, to use Gemini through Vertex AI, install the [gcloud CLI](https://cloud.google.com/sdk/docs/install), configure Application Default Credentials, and select a project:
-```
+```bash
 gcloud auth application-default login
-export GOOGLE_GENAI_USE_VERTEXAI=True
-export GOOGLE_CLOUD_PROJECT=<your_project_name>
+export GOOGLE_GENAI_USE_VERTEXAI=true
+export GOOGLE_CLOUD_PROJECT="<project-id>"
 export GOOGLE_CLOUD_LOCATION=global
 ```
 
-6. Launch the evaluation. For example, to reproduce our GPT-3.5 captioning baseline:
-```bash
-python run.py \
-  --instruction_path agent/prompts/jsons/p_cot_id_actree_3s.json \
-  --test_start_idx 0 \
-  --test_end_idx 1 \
-  --result_dir <your_result_dir> \
-  --test_config_base_dir=config_files/vwa/test_classifieds \
-  --model gpt-3.5-turbo-1106 \
-  --observation_type accessibility_tree_with_captioner
-```
-This script will run the first Classifieds example with the GPT-3.5 caption-augmented agent. The trajectory will be saved in `<your_result_dir>/0.html`. Note that the baselines that include a captioning model run on GPU by default (e.g., BLIP-2-T5XL as the captioning model will take up approximately 12GB of GPU VRAM).
-
-## GPT-4V + SoM Agent
-![SoM](media/som_figure.png)
-
-To run the GPT-4V + SoM agent we proposed in our paper, you can run evaluation with the following flags:
-```bash
-python run.py \
-  --instruction_path agent/prompts/jsons/p_som_cot_id_actree_3s.json \
-  --test_start_idx 0 \
-  --test_end_idx 1 \
-  --result_dir <your_result_dir> \
-  --test_config_base_dir=config_files/vwa/test_classifieds \
-  --model gpt-4-vision-preview \
-  --action_set_tag som  --observation_type image_som
-```
-
-To run Gemini models, you can change the provider, model, and the max_obs_length (as Gemini uses characters instead of tokens for inputs):
-```bash
-python run.py \
-  --instruction_path agent/prompts/jsons/p_som_cot_id_actree_3s.json \
-  --test_start_idx 0 \
-  --test_end_idx 1 \
-  --max_steps 1 \
-  --result_dir <your_result_dir> \
-  --test_config_base_dir=config_files/vwa/test_classifieds \
-  --provider google  --model gemini-3.8-flash  --mode completion  --max_obs_length 15360 \
-  --action_set_tag som  --observation_type image_som
-```
-
-The GPT and Gemini paths both default to seed 42, medium reasoning, and 384 output tokens. Upstream VisualWebArena uses a global `max_obs_length` default of 3840 and explicitly passes 15360 in its Gemini example because that path counts characters. This fork applies those effective provider-specific values when `--max_obs_length` is omitted.
-
-If you'd like to reproduce the results from our paper, we have also provided scripts in `scripts/` to run the full evaluation pipeline on each of the VWA environments. For example, to reproduce the results from the Classifieds environment, you can run:
+For OpenAI or an OpenAI-compatible endpoint:
 
 ```bash
-bash scripts/run_classifieds_som.sh
+export OPENAI_API_KEY="<api-key>"
+# Optional:
+export OPENAI_BASE_URL="<compatible-api-base-url>"
 ```
 
-### Agent Trajectories
+If an OpenAI-compatible multimodal model name does not contain the historical
+`gpt-4-...-vision` pattern, opt into image inputs explicitly:
 
-To facilitate analysis and evals, we have also released the trajectories of the GPT-4V + SoM agent on the full set of 910 VWA tasks [here](https://drive.google.com/file/d/1-tKz5ByWa1-jwtejiFgxli8fZcBPZgAE/view?usp=sharing). It consists of .html files that record the agent's observations and output at each step of the trajectory.
-
-### Demo
-![Demo](media/find_restaurant.gif)
-
-We have also prepared a demo for you to run the agents on your own task on an arbitrary webpage. An example is shown above where the agent is tasked to find the best Thai restaurant in Pittsburgh.
-
-After following the setup instructions above and setting the OpenAI API key (the other environment variables for website URLs aren't really used, so you should be able to set them to some dummy variable), you can run the GPT-4V + SoM agent with the following command:
 ```bash
-python run_demo.py \
-  --instruction_path agent/prompts/jsons/p_som_cot_id_actree_3s.json \
-  --start_url "https://www.amazon.com" \
-  --image "https://media.npr.org/assets/img/2023/01/14/this-is-fine_wide-0077dc0607062e15b476fb7f3bd99c5f340af356-s1400-c100.jpg" \
-  --intent "Help me navigate to a shirt that has this on it." \
-  --result_dir demo_test_amazon \
-  --model gpt-4-vision-preview \
-  --action_set_tag som  --observation_type image_som \
-  --render
+export VWA_MULTIMODAL=1
 ```
 
-This tasks the agent to find a shirt that looks like the provided image (the "This is fine" dog) from Amazon. Have fun!
+Some `fuzzy_match` and `ua_match` evaluations use the OpenAI model configured
+inside `evaluation_harness/helper_functions.py`. Those tasks require working
+OpenAI credentials even when the acting agent uses Gemini.
 
+## Run a paired viewport experiment
 
-## Human Evaluations
+The example below changes only viewport height. Set `VWA_MODEL` to the exact
+model identifier used for the experiment.
 
-We collected human trajectories on 233 tasks (one from each template type) and the Playwright recording files are provided [here](https://drive.google.com/drive/folders/1S_fDzB1VUTwUphWPKZ0DdjJOAXjGz94g). These are the same tasks reported in our paper (with a human success rate of ~89%). You can view the HTML pages, actions, etc., by running `playwright show-trace <example_id>.zip`. The `example_id` follows the same structure as the examples from the corresponding site in `config_files/`.
+```bash
+export VWA_MODEL="replace-with-exact-model-id"
 
+COMMON_ARGS=(
+  --instruction_path agent/prompts/jsons/p_som_cot_id_actree_3s.json
+  --test_start_idx 0
+  --test_end_idx 10
+  --test_config_base_dir config_files/vwa/test_reddit
+  --provider google
+  --model "$VWA_MODEL"
+  --mode completion
+  --action_set_tag som
+  --observation_type image_som
+  --max_steps 30
+  --max_tokens 384
+)
 
-## Citation
-If you find our environment or our models useful, please consider citing <a href="https://jykoh.com/vwa" target="_blank">VisualWebArena</a> as well as <a href="https://webarena.dev/" target="_blank">WebArena</a>:
+# Start the first condition from the benchmark snapshot.
+bash scripts/reset_reddit.sh
+bash prepare.sh
+
+python run.py "${COMMON_ARGS[@]}" \
+  --viewport_width 1280 \
+  --viewport_height 720 \
+  --result_dir results/reddit_1280x720
+
+# Restore the website to the same initial state before the paired condition.
+bash scripts/reset_reddit.sh
+bash prepare.sh
+
+python run.py "${COMMON_ARGS[@]}" \
+  --viewport_width 1280 \
+  --viewport_height 2048 \
+  --result_dir results/reddit_1280x2048
 ```
+
+For an OpenAI agent, use `--provider openai --mode chat` and the same remaining
+arguments. To compare observation representations rather than viewport size,
+run a separate experiment; do not change `observation_type` inside a viewport
+pair.
+
+Before running the complete benchmark, use a small fixed task range as a smoke
+test. Reset each website to the same snapshot before every paired condition,
+especially for tasks that mutate shopping, forum, or classifieds state. The
+included reset scripts assume the websites run as local Docker containers; use
+the equivalent snapshot-restore procedure for a remote deployment.
+
+## Outputs and analysis
+
+Each result directory contains:
+
+- `config.json`: the effective experiment arguments, including viewport size.
+- `render_<task_id>.html`: the observation and action trajectory for a task.
+- `traces/<task_id>.zip`: the Playwright trace.
+- `log_files.txt`: paths to execution logs containing `[Result] (PASS|FAIL)` and
+  the aggregate `Average score`.
+- `error.txt`: unhandled task errors, when present.
+
+For a single uninterrupted run, inspect the aggregate score with:
+
+```bash
+grep "Average score" "$(tail -n 1 results/reddit_1280x720/log_files.txt)"
+grep "Average score" "$(tail -n 1 results/reddit_1280x2048/log_files.txt)"
+```
+
+Break down a run by task category with:
+
+```bash
+python scripts/calc_breakdown_sr.py \
+  --log_file "$(tail -n 1 results/reddit_1280x720/log_files.txt)" \
+  --config_file config_files/vwa/test_reddit.json
+```
+
+If a condition was resumed and therefore has multiple log files, merge those
+logs before calculating the breakdown. Do not compare only aggregate success
+rates: also report how many identical tasks changed from fail to pass or pass
+to fail between viewport conditions.
+
+## Current execution behavior
+
+`run.py` currently applies the following settings after parsing CLI arguments:
+
+- headless browser execution (`render=False`)
+- current-viewport-only observations
+- screenshots in rendered trajectories
+- Playwright trace capture
+- a 2.5-second delay after each browser action
+
+These are benchmark invariants in the current fork. Changing one of them should
+be treated as a new experimental condition and documented separately.
+
+## Upstream resources and attribution
+
+This fork intentionally keeps upstream environment and evaluation code so that
+results remain comparable to VisualWebArena. Historical announcements, released
+human trajectories, baseline trajectories, and the general-purpose demo are
+documented in the
+[original VisualWebArena README](https://github.com/web-arena-x/visualwebarena#readme)
+rather than duplicated here.
+
+When publishing results obtained with this fork, describe the viewport sizes,
+task subset, site snapshot, model identifier, prompt, observation type, action
+set, number of repeats, and fork commit. Cite VisualWebArena and WebArena:
+
+```bibtex
 @article{koh2024visualwebarena,
   title={VisualWebArena: Evaluating Multimodal Agents on Realistic Visual Web Tasks},
   author={Koh, Jing Yu and Lo, Robert and Jang, Lawrence and Duvvur, Vikram and Lim, Ming Chong and Huang, Po-Yu and Neubig, Graham and Zhou, Shuyan and Salakhutdinov, Ruslan and Fried, Daniel},
@@ -197,6 +275,4 @@ If you find our environment or our models useful, please consider citing <a href
 }
 ```
 
-## Acknowledgements
-
-Our code is heavily based off the <a href="https://github.com/web-arena-x/webarena">WebArena codebase</a>.
+The repository retains the upstream MIT license. See [LICENSE](LICENSE).
