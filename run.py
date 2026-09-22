@@ -410,6 +410,11 @@ def test(
                     if isinstance(agent, PromptAgent)
                     else None,
                 )
+                step_idx = len(meta_data["action_history"])
+                logger.info(
+                    f"[Step {step_idx}/{max_steps}] "
+                    f"{action_str}"
+                )
                 render_helper.render(
                     action, state_info, meta_data, args.render_screenshot
                 )
