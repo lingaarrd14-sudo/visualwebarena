@@ -1,10 +1,15 @@
 #!/bin/bash
 
-## Define the model, result directory, and instruction path variables
-model="gpt-4-vision-preview"
-result_dir="classifieds_gpt4_som"
+## Define the model, result directory, and instruction path variables, observation
+model="gpt-5.6-luna"
+domain="classifieds"
 instruction_path="agent/prompts/jsons/p_som_cot_id_actree_3s.json"
 captioning_model="Salesforce/blip2-flan-t5-xl"
+observation=image_som
+
+#viewport
+width=1024
+height=2048
 
 # Define the batch size variable
 batch_size=50
@@ -12,7 +17,8 @@ batch_size=50
 # Define the starting and ending indices
 start_idx=0
 end_idx=$((start_idx + batch_size))
-max_idx=234
+max_idx=50
+date=$(date '+%Y-%m-%d %H:%M:%S')
 
 # Loop until the starting index is less than or equal to 466
 while [ $start_idx -le $max_idx ]
@@ -25,11 +31,11 @@ do
      --test_start_idx $start_idx \
      --test_end_idx $end_idx \
      --model $model \
-     --result_dir $result_dir \
-     --test_config_base_dir=config_files/classifieds_visual \
-     --repeating_action_failure_th 5 --viewport_height 2048 --max_obs_length 3840 \
+     --result_dir="$model-$domain-$width-x-$height-$date" \
+     --test_config_base_dir=config_files/vwa/test_classifieds \
+     --repeating_action_failure_th 5 --viewport_width $width --viewport_height $height --max_obs_length 3840 \
      --captioning_model $captioning_model \
-     --action_set_tag som  --observation_type image_som
+     --action_set_tag som  --observation_type $observation
 
     # Increment the start and end indices by the batch size
     start_idx=$((start_idx + batch_size))
