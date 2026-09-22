@@ -179,9 +179,11 @@ async def _throttled_openai_chat_completion_acreate(
                 return await aclient.chat.completions.create(
                     model=model,
                     messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    top_p=top_p,
+                    # GPT-5.6 Luna Chat Completions parameters:
+                    # use max_completion_tokens, seed, reasoning_effort and omit temperature/top_p.
+                    max_completion_tokens=max_tokens,
+                    reasoning_effort="medium",
+                    seed=42
                 )
             except openai.RateLimitError:
                 logging.warning(
@@ -257,8 +259,11 @@ def generate_from_openai_chat_completion(
     response = client.chat.completions.create(
         model=model,
         messages=messages,
-        #temperature=temperature,
-        max_completion_tokens=max_tokens, #내가 수정 max_tokens-> max_completion_tokens, top_k 제거
+        # GPT-5.6 Luna Chat Completions parameters:
+        # use max_completion_tokens, seed, reasoning_effort and omit temperature/top_p.
+        max_completion_tokens=max_tokens,
+        reasoning_effort="medium",
+        seed=42
     )
     answer: str = response.choices[0].message.content
     return answer
