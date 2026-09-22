@@ -20,8 +20,8 @@ start_idx=0
 end_idx=$((start_idx + batch_size))
 max_idx=50
 
-# Loop until the starting index is less than or equal to 466
-while [ $start_idx -le $max_idx ]
+# Run each non-empty half-open task range [start_idx, end_idx).
+while [ $start_idx -lt $max_idx ]
 do
     # Run the scripts and the Python command with the current indices and defined variables
     bash scripts/reset_reddit.sh
@@ -33,7 +33,7 @@ do
      --model $model \
      --result_dir="$model-$domain-$width-x-$height-$date" \
      --test_config_base_dir=config_files/vwa/test_reddit \
-     --repeating_action_failure_th 5 --viewport_height 2048 --max_obs_length 3840 \
+     --repeating_action_failure_th 5 --viewport_width $width --viewport_height $height --max_obs_length 3840 \
      --captioning_model $captioning_model \
      --action_set_tag som  --observation_type $observation
 

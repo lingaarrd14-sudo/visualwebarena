@@ -16,11 +16,11 @@ batch_size=50
 # Define the starting and ending indices
 start_idx=0
 end_idx=$((start_idx + batch_size))
-max_idx=100
+max_idx=132
 date=$(date '+%Y-%m-%d %H:%M:%S')
 
-# Loop until the starting index is less than or equal to max_idx.
-while [ $start_idx -le $max_idx ]
+# Run each non-empty half-open task range [start_idx, end_idx).
+while [ $start_idx -lt $max_idx ]
 do
     bash scripts/reset_shopping.sh
     bash prepare.sh

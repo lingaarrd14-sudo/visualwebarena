@@ -26,6 +26,11 @@ All other conditions should remain fixed between paired runs. The current
 current viewport rather than the full page. The `--current_viewport_only` CLI
 flag therefore does not define a separate condition in this fork.
 
+Tasks with a non-empty `viewport_size` field in their config are excluded
+automatically because that task-level setting would override the command-line
+viewport dimensions. The excluded task IDs and their configured dimensions are
+written to the run log.
+
 For a clean viewport-height experiment, keep the width fixed and compare, for
 example, `1280x720` against `1280x2048`. Use a separate result directory for
 every condition.

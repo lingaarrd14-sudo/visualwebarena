@@ -511,6 +511,39 @@ def get_unfinished(config_files: list[str], result_dir: str) -> list[str]:
     return unfinished_configs
 
 
+def exclude_tasks_with_viewport_size(
+    config_files: list[str],
+) -> list[str]:
+    """Exclude tasks that override the experiment's viewport dimensions."""
+    included_configs = []
+    excluded_tasks = []
+
+    for config_file in config_files:
+        with open(config_file) as f:
+            task_config = json.load(f)
+
+        viewport_size = task_config.get("viewport_size")
+        if viewport_size:
+            excluded_tasks.append(
+                (task_config.get("task_id", Path(config_file).stem), viewport_size)
+            )
+        else:
+            included_configs.append(config_file)
+
+    if excluded_tasks:
+        excluded_description = ", ".join(
+            f"{task_id} ({viewport_size})"
+            for task_id, viewport_size in excluded_tasks
+        )
+        logger.info(
+            "Excluded %d task(s) with a configured viewport_size: %s",
+            len(excluded_tasks),
+            excluded_description,
+        )
+
+    return included_configs
+
+
 def dump_config(args: argparse.Namespace) -> None:
     config_file = Path(args.result_dir) / "config.json"
     if not config_file.exists():
@@ -533,6 +566,7 @@ if __name__ == "__main__":
     ed_idx = args.test_end_idx
     for i in range(st_idx, ed_idx):
         test_file_list.append(os.path.join(test_config_base_dir, f"{i}.json"))
+    test_file_list = exclude_tasks_with_viewport_size(test_file_list)
     test_file_list = get_unfinished(test_file_list, args.result_dir)
     print(f"Total {len(test_file_list)} tasks left")
     args.render = False

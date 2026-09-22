@@ -17,11 +17,11 @@ batch_size=50
 # Define the starting and ending indices
 start_idx=0
 end_idx=$((start_idx + batch_size))
-max_idx=50
+max_idx=63
 date=$(date '+%Y-%m-%d %H:%M:%S')
 
-# Loop until the starting index is less than or equal to 466
-while [ $start_idx -le $max_idx ]
+# Run each non-empty half-open task range [start_idx, end_idx).
+while [ $start_idx -lt $max_idx ]
 do
     # Classifieds reset is quick, so we can do it after every example.
     curl -X POST http://127.0.0.1:9980/index.php?page=reset -d "token=4b61655535e7ed388f0d40a93600254c"
