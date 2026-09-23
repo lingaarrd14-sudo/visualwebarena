@@ -27,4 +27,3 @@ docker exec $CONTAINER_NAME /var/www/magento2/bin/magento indexer:set-mode sched
 docker exec $CONTAINER_NAME /var/www/magento2/bin/magento indexer:set-mode schedule catalog_product_price
 docker exec $CONTAINER_NAME /var/www/magento2/bin/magento indexer:set-mode schedule cataloginventory_stock
 
-

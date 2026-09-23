@@ -1,10 +1,13 @@
 #!/bin/bash
 ### This script runs the GPT-4V + SoM models on the entire VWA shopping test set.
 
+provider="openai"
 model="gpt-5.6-luna"
+mode="chat"
 domain="shopping"
 instruction_path="agent/prompts/jsons/p_som_cot_id_actree_3s.json"
 observation=image_som
+action_set_tag="som"
 
 #viewport
 width=1024
@@ -29,10 +32,12 @@ do
      --test_start_idx $start_idx \
      --test_end_idx $end_idx \
      --model $model \
-     --result_dir="$model-$domain-$width-x-$height-$date" \
+     --provider $provider \
+     --mode $mode \
+     --result_dir=cache/"${model}-${domain}-${width}x${height}-${date}" \
      --test_config_base_dir=config_files/vwa/test_shopping \
      --repeating_action_failure_th 5 --viewport_width $width --viewport_height $height --max_obs_length 3840 \
-     --action_set_tag som  --observation_type $observation
+     --action_set_tag $action_set_tag  --observation_type $observation
 
     # Increment the start and end indices by the batch size
     start_idx=$((start_idx + batch_size))

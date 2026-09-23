@@ -57,10 +57,15 @@ file_handler = logging.FileHandler(LOG_FILE_NAME)
 file_handler.setLevel(logging.DEBUG)
 logger.addHandler(file_handler)
 
-# Set the log format
-formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-console_handler.setFormatter(formatter)
-file_handler.setFormatter(formatter)
+# Keep CLI output concise by showing only the message.
+console_formatter = logging.Formatter("%(message)s")
+# Preserve timestamps and log levels in the log file.
+file_formatter = logging.Formatter(
+    "%(asctime)s - %(levelname)s - %(message)s"
+)
+
+console_handler.setFormatter(console_formatter)
+file_handler.setFormatter(file_formatter)
 
 
 def config() -> argparse.Namespace:
@@ -109,7 +114,7 @@ def config() -> argparse.Namespace:
     parser.add_argument(
         "--instruction_path",
         type=str,
-        default="agents/prompts/state_action_agent.json",
+        default="agent/prompts/state_action_agent.json",
     )
     parser.add_argument(
         "--parsing_failure_th",
@@ -373,7 +378,7 @@ def test(
                         images.append(input_image)
 
             logger.info(f"[Config file]: {config_file}")
-            logger.info(f"[Intent]: {intent}")
+            logger.info(f"[Task{task_id}] [Intent]: {intent}")
 
             agent.reset(config_file)
             trajectory: Trajectory = []
@@ -414,7 +419,7 @@ def test(
                 step_idx = len(meta_data["action_history"])
                 logger.info(
                     f"[Step {step_idx}/{max_steps}] "
-                    f"{action_str}"
+                    + action_str.replace("\n", "")  # remove new line in the action_str
                 )
                 render_helper.render(
                     action, state_info, meta_data, args.render_screenshot

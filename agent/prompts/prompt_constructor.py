@@ -76,6 +76,21 @@ class PromptConstructor(object):
                 raise ValueError(
                     f"OpenAI models do not support mode {self.lm_config.mode}"
                 )
+        elif "google" in self.lm_config.provider:
+            if self.lm_config.mode == "completion":
+                # Gemini receives the text-only prompt as ordered content parts.
+                google_message = [intro, "Here are a few examples:"]
+                for x, y in examples:
+                    google_message.append(f"Observation\n:{x}\n")
+                    google_message.append(f"Action: {y}")
+                google_message.append("Now make prediction given the observation")
+                google_message.append(f"Observation\n:{current}\n")
+                google_message.append("Action:")
+                return google_message
+            else:
+                raise ValueError(
+                    f"Gemini models do not support mode {self.lm_config.mode}"
+                )
         elif "huggingface" in self.lm_config.provider:
             # https://huggingface.co/blog/llama2#how-to-prompt-llama-2
             # https://github.com/facebookresearch/llama/blob/main/llama/generation.py#L320
