@@ -11,8 +11,8 @@ action_set_tag="som"
 
 #viewport
 width=1024
-height=2048
-date=$(date '+%Y-%m-%d %H:%M:%S')
+height=720
+date=$(date '+%Y-%m-%d')
 
 # Define the batch size variable
 batch_size=30

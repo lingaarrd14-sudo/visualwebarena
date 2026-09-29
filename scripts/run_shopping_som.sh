@@ -11,7 +11,7 @@ action_set_tag="som"
 
 #viewport
 width=1024
-height=2048
+height=720
 
 # Define the batch size variable
 batch_size=50
@@ -20,7 +20,7 @@ batch_size=50
 start_idx=0
 end_idx=$((start_idx + batch_size))
 max_idx=132
-date=$(date '+%Y-%m-%d %H:%M:%S')
+date=$(date '+%Y-%m-%d')
 
 # Run each non-empty half-open task range [start_idx, end_idx).
 while [ $start_idx -lt $max_idx ]

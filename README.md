@@ -214,6 +214,8 @@ Each result directory contains:
 - `config.json`: the effective experiment arguments, including viewport size.
 - `render_<task_id>.html`: the observation and action trajectory for a task.
 - `traces/<task_id>.zip`: the Playwright trace.
+- `log_<run_id>.jsonl`: execution logs as JSON Lines records containing a
+  timestamp and message.
 - `log_files.txt`: paths to execution logs containing `[Result] (PASS|FAIL)` and
   the aggregate `Average score`.
 - `error.txt`: unhandled task errors, when present.

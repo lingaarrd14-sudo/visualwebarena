@@ -42,6 +42,60 @@ from evaluation_harness import evaluator_router, image_utils
 
 DATASET = os.environ["DATASET"]
 
+
+class JsonlFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        return json.dumps({"message": record.getMessage()}, ensure_ascii=False)
+
+
+# Buffer task logs so one task occupies one JSONL line.
+class TaskJsonlHandler(logging.FileHandler):
+    """Write each task's records as one JSONL line."""
+
+    def __init__(self, filename: str) -> None:
+        super().__init__(filename, encoding="utf-8")
+        self.task_records: list[dict] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            message = record.getMessage()
+            entry = json.loads(self.format(record))
+
+            if message.startswith("[Task"):
+                self._flush_task()
+                self.task_records.append(entry)
+            elif self.task_records:
+                if message.startswith("[Config file]"):
+                    self._flush_task()
+                    self._write_json(entry)
+                else:
+                    self.task_records.append(entry)
+                    if message.startswith(
+                        ("[Result]", "[OpenAI Error]", "[Unhandled Error]")
+                    ):
+                        self._flush_task()
+            else:
+                self._write_json(entry)
+        except Exception:
+            self.handleError(record)
+
+    def close(self) -> None:
+        self._flush_task()
+        super().close()
+
+    def _flush_task(self) -> None:
+        if self.task_records:
+            self._write_json({"messages": self.task_records})
+            self.task_records = []
+
+    def _write_json(self, value: dict) -> None:
+        self.stream.write(
+            json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+            + self.terminator
+        )
+        self.flush()
+
+
 LOG_FOLDER = "log_files"
 Path(LOG_FOLDER).mkdir(parents=True, exist_ok=True)
 LOG_FILE_NAME = f"{LOG_FOLDER}/log_{time.strftime('%Y%m%d%H%M%S', time.localtime())}_{random.randint(0, 10000)}.log"
@@ -490,13 +544,20 @@ def prepare(args: argparse.Namespace) -> None:
         result_dir = (
             f"cache/results_{time.strftime('%Y%m%d%H%M%S', time.localtime())}"
         )
-    if not Path(result_dir).exists():
-        Path(result_dir).mkdir(parents=True, exist_ok=True)
-        args.result_dir = result_dir
+    result_path = Path(result_dir)
+    result_dir_created = not result_path.exists()
+    result_path.mkdir(parents=True, exist_ok=True)
+    args.result_dir = result_dir
+
+    jsonl_path = result_path / f"{result_path.name}.jsonl"
+    jsonl_handler = TaskJsonlHandler(jsonl_path)
+    jsonl_handler.setFormatter(JsonlFormatter())
+    logger.addHandler(jsonl_handler)
+
+    if result_dir_created:
         logger.info(f"Create result dir: {result_dir}")
 
-    if not (Path(result_dir) / "traces").exists():
-        (Path(result_dir) / "traces").mkdir(parents=True)
+    (result_path / "traces").mkdir(exist_ok=True)
 
     # log the log file
     with open(os.path.join(result_dir, "log_files.txt"), "a+") as f:
