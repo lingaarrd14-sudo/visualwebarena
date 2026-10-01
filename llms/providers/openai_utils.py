@@ -207,10 +207,8 @@ async def _throttled_openai_chat_completion_acreate(
                 return await _get_async_openai_client().chat.completions.create(
                     model=model,
                     messages=messages,
-                    # GPT-5.6 migration: use max_completion_tokens and medium
-                    # reasoning instead of the previous sampling parameters.
-                    # Fix seed=42 to improve benchmark reproducibility.
-                    max_completion_tokens=max_tokens,
+                    # GPT-5.6 migration: use medium reasoning and seed to improve benchmark reproducibility
+                    # removed the previous sampling parameters(temperature, top_p) and limit max_completion_tokens.
                     reasoning_effort="medium",
                     seed=42,
                 )
@@ -289,10 +287,8 @@ def generate_from_openai_chat_completion(
     response = _get_openai_client().chat.completions.create(
         model=model,
         messages=messages,
-        # GPT-5.6 migration: use max_completion_tokens and medium reasoning
-        # instead of the previous sampling parameters. Fix seed=42 to improve
-        # benchmark reproducibility.
-        max_completion_tokens=max_tokens,
+        # GPT-5.6 migration: use medium reasoning and seed to improve benchmark reproducibility
+        # removed the previous sampling parameters(temperature, top_p) and limit max_completion_tokens.
         reasoning_effort="medium",
         seed=42,
     )

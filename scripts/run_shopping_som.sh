@@ -1,9 +1,9 @@
 #!/bin/bash
 ### This script runs the GPT-4V + SoM models on the entire VWA shopping test set.
 
-provider="openai"
-model="gpt-5.6-luna"
-mode="chat"
+provider="google"
+model="gemini-3.8-flash"
+mode="completion"
 domain="shopping"
 instruction_path="agent/prompts/jsons/p_som_cot_id_actree_3s.json"
 observation=image_som
