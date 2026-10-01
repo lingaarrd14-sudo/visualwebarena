@@ -12,7 +12,6 @@ action_set_tag="som"
 #viewport
 width=1024
 height=720
-date=$(date '+%Y-%m-%d')
 
 # Define the batch size variable
 batch_size=30
@@ -21,6 +20,8 @@ batch_size=30
 start_idx=0
 end_idx=$((start_idx + batch_size))
 max_idx=50
+
+date=$(date '+%Y-%m-%d')
 
 # Run each non-empty half-open task range [start_idx, end_idx).
 while [ $start_idx -lt $max_idx ]
@@ -37,7 +38,7 @@ do
      --mode $mode \
      --result_dir=cache/"${model}-${domain}-${width}x${height}-${date}" \
      --test_config_base_dir=config_files/vwa/test_reddit \
-     --repeating_action_failure_th 5 --viewport_width $width --viewport_height $height --max_obs_length 3840 \
+     --repeating_action_failure_th 5 --viewport_width $width --viewport_height $height \
      --action_set_tag $action_set_tag  --observation_type $observation
 
     # Increment the start and end indices by the batch size

@@ -20,6 +20,7 @@ batch_size=50
 start_idx=50
 end_idx=$((start_idx + batch_size))
 max_idx=63
+
 date=$(date '+%Y-%m-%d')
 
 # Run each non-empty half-open task range [start_idx, end_idx).
@@ -37,7 +38,7 @@ do
      --mode $mode \
      --result_dir=cache/"${model}-${domain}-${width}x${height}-${date}" \
      --test_config_base_dir=config_files/vwa/test_classifieds \
-     --repeating_action_failure_th 5 --viewport_width $width --viewport_height $height --max_obs_length 3840 \
+     --repeating_action_failure_th 5 --viewport_width $width --viewport_height $height \
      --action_set_tag $action_set_tag  --observation_type $observation
 
     # Increment the start and end indices by the batch size
