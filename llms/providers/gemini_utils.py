@@ -92,7 +92,6 @@ def generate_from_gemini_completion(
     generation_config = types.GenerateContentConfig(
         # Match the GPT baseline: use the medim thinking level, fixed seed.
         # removed the previous sampling parameters(temperature, top_p) and limit max_completion_tokens.
-        max_output_tokens=max_tokens,
         seed=42,
         thinking_config=types.ThinkingConfig(
             thinking_level="medium",

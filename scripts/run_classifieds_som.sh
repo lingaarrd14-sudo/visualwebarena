@@ -19,7 +19,7 @@ batch_size=50
 # Define the starting and ending indices
 start_idx=0
 end_idx=$((start_idx + batch_size))
-max_idx=233
+max_idx=234
 
 date=$(date '+%Y-%m-%d')
 
