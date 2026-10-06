@@ -2,7 +2,7 @@
 
 ## Define the model, result directory, and instruction path variables, observation
 provider="openai"
-model="gpt-5.6-luna"
+model="gpt-6-luna"
 mode="chat"
 domain="classifieds"
 instruction_path="agent/prompts/jsons/p_som_cot_id_actree_3s.json"
@@ -17,9 +17,9 @@ height=720
 batch_size=50
 
 # Define the starting and ending indices
-start_idx=50
+start_idx=0
 end_idx=$((start_idx + batch_size))
-max_idx=63
+max_idx=233
 
 date=$(date '+%Y-%m-%d')
 
@@ -36,7 +36,7 @@ do
      --model $model \
      --provider $provider \
      --mode $mode \
-     --result_dir=cache/"${model}-${domain}-${width}x${height}-${date}" \
+     --result_dir=cache/"${model}-${action_set_tag}-${domain}-${width}x${height}-${date}" \
      --test_config_base_dir=config_files/vwa/test_classifieds \
      --repeating_action_failure_th 5 --viewport_width $width --viewport_height $height \
      --action_set_tag $action_set_tag  --observation_type $observation

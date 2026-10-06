@@ -5,9 +5,9 @@ provider="openai"
 model="gpt-6-luna"
 mode="chat"
 domain="shopping"
-instruction_path="agent/prompts/jsons/p_multimodal_cot_id_actree_3s.json"
-observation="accessibility_tree_with_captioner"
-action_set_tag="id_accessibility_tree"
+instruction_path="agent/prompts/jsons/p_som_cot_id_actree_3s.json"
+observation="image_som"
+action_set_tag="som"
 
 #viewport
 width=1024
@@ -19,7 +19,7 @@ batch_size=50
 # Define the starting and ending indices
 start_idx=0
 end_idx=$((start_idx + batch_size))
-max_idx=130
+max_idx=466
 
 date=$(date '+%Y-%m-%d')
 
