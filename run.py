@@ -316,6 +316,7 @@ def test(
     config_file_list: list[str]
 ) -> None:
     scores = []
+    error_count = 0 #added to count the number of errors
     max_steps = args.max_steps
 
     early_stop_thresholds = {
@@ -502,20 +503,23 @@ def test(
                 page=env.page
             )
 
+            # Save before counting to avoid counting trace errors twice.
+            if args.save_trace_enabled:
+                env.save_trace(
+                    Path(args.result_dir) / "traces" / f"{task_id}.zip"
+                )
+
             scores.append(score)
 
             if score == 1:
                 logger.info(f"[Result] (PASS) {config_file}")
             else:
                 logger.info(f"[Result] (FAIL) {config_file}")
-
-            if args.save_trace_enabled:
-                env.save_trace(
-                    Path(args.result_dir) / "traces" / f"{task_id}.zip"
-                )
         except openai.OpenAIError as e:
+            error_count += 1
             logger.info(f"[OpenAI Error] {repr(e)}")
         except Exception as e:
+            error_count += 1
             logger.info(f"[Unhandled Error] {repr(e)}]")
             import traceback
 
@@ -528,8 +532,13 @@ def test(
         render_helper.close()
 
     env.close()
-    if len(scores):
-        logger.info(f"Average score: {sum(scores) / len(scores)}")
+    success_count = sum(score == 1 for score in scores)
+    failure_count = len(scores) - success_count
+    logger.info(
+        f"[Batch Summary] Total: {len(config_file_list)}, "
+        f"Success: {success_count}, Failure: {failure_count}, "
+        f"Error: {error_count}"
+    )
 
 
 def prepare(args: argparse.Namespace) -> None:

@@ -38,8 +38,8 @@ To be successful, it is very important to follow the following rules:
 1. You should only issue an action that is valid given the current observation
 2. You should only issue one action at a time.
 3. You should follow the examples to reason step by step and then issue the next action.
-4. Generate the action in the correct format. Start with a "In summary, the next action I will perform is" phrase, followed by action inside ``````. For example, "In summary, the next action I will perform is ```click [1234]```".
-5. Issue stop action when you think you have achieved the objective. Don't generate anything after stop.""",
+4. Generate the action in the correct format. Start with a "In summary, the next action I will perform is" phrase, followed by the action wrapped in ```(triple backticks) like ```action [1234]```. For example, "In summary, the next action I will perform is ```click [1234]```". Every response must end with this format.
+5. Issue stop[answer] action when you think you have achieved the objective. provide the final plain text answer only inside the brackets of the stop[] action. Don't generate anything after stop.""" ,
 	"examples": [
 		(
 			"""OBSERVATION:

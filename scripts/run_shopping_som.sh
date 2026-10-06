@@ -1,13 +1,13 @@
 #!/bin/bash
 ### This script runs the GPT-4V + SoM models on the entire VWA shopping test set.
 
-provider="google"
-model="gemini-3.8-flash"
-mode="completion"
+provider="openai"
+model="gpt-6-luna"
+mode="chat"
 domain="shopping"
-instruction_path="agent/prompts/jsons/p_som_cot_id_actree_3s.json"
-observation=image_som
-action_set_tag="som"
+instruction_path="agent/prompts/jsons/p_multimodal_cot_id_actree_3s.json"
+observation="accessibility_tree_with_captioner"
+action_set_tag="id_accessibility_tree"
 
 #viewport
 width=1024
@@ -19,7 +19,7 @@ batch_size=50
 # Define the starting and ending indices
 start_idx=0
 end_idx=$((start_idx + batch_size))
-max_idx=132
+max_idx=130
 
 date=$(date '+%Y-%m-%d')
 
@@ -35,7 +35,7 @@ do
      --model $model \
      --provider $provider \
      --mode $mode \
-     --result_dir=cache/"${model}-${domain}-${width}x${height}-${date}" \
+     --result_dir=cache/"${model}-${action_set_tag}-${domain}-${width}x${height}-${date}" \
      --test_config_base_dir=config_files/vwa/test_shopping \
      --repeating_action_failure_th 5 --viewport_width $width --viewport_height $height \
      --action_set_tag $action_set_tag  --observation_type $observation
