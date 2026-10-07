@@ -35,6 +35,9 @@ class PromptConstructor(object):
         instruction["examples"] = [tuple(e) for e in instruction["examples"]]
         self.instruction: Instruction = instruction
         self.tokenizer = tokenizer
+        # The selected prompt decides whether to use JSON output.
+        output_format = instruction["meta_data"].get("output_format")
+        self.is_structured = output_format == "json_schema"
 
     def get_lm_api_input(
         self, intro: str, examples: list[tuple[str, str]], current: str
@@ -233,7 +236,8 @@ class CoTPromptConstructor(PromptConstructor):
         tokenizer: Tokenizer,
     ):
         super().__init__(instruction_path, lm_config, tokenizer)
-        self.answer_phrase = self.instruction["meta_data"]["answer_phrase"]
+        # JSON prompts omit the legacy answer phrase.
+        self.answer_phrase = self.instruction["meta_data"].get("answer_phrase", "")
 
     def construct(
         self,
@@ -293,8 +297,8 @@ class MultimodalCoTPromptConstructor(CoTPromptConstructor):
         lm_config: lm_config.LMConfig,
         tokenizer: Tokenizer,
     ):
+        # The parent already sets answer_phrase.
         super().__init__(instruction_path, lm_config, tokenizer)
-        self.answer_phrase = self.instruction["meta_data"]["answer_phrase"]
 
     def construct(
         self,

@@ -278,11 +278,20 @@ def generate_from_openai_chat_completion(
     top_p: float,
     context_length: int,
     stop_token: str | None = None,
+    *,
+    response_schema: dict[str, Any] | None = None,
 ) -> str:
     if "OPENAI_API_KEY" not in os.environ:
         raise ValueError(
             "OPENAI_API_KEY environment variable must be set when using OpenAI API."
         )
+    # Ask the API to enforce the action schema for JSON prompts.
+    response_format = {}
+    if response_schema is not None:
+        response_format["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {"name": "response", "strict": True, "schema": response_schema},
+        }
     # Keep OpenAI initialization lazy for Gemini-only runs.
     response = _get_openai_client().chat.completions.create(
         model=model,
@@ -291,6 +300,7 @@ def generate_from_openai_chat_completion(
         # removed the previous sampling parameters(temperature, top_p) and limit max_completion_tokens.
         reasoning_effort="medium",
         seed=42,
+        **response_format,
     )
     answer: str = response.choices[0].message.content
     return answer

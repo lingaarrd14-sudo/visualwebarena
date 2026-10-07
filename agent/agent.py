@@ -7,6 +7,11 @@ import tiktoken
 from beartype import beartype
 from PIL import Image
 
+from agent.action_schema import (
+    ACTION_RESPONSE_SCHEMA,
+    SCHEMA_VERSION,
+    parse_action_response,
+)
 from agent.prompts import *
 from browser_env import Trajectory
 from browser_env.actions import (
@@ -115,6 +120,19 @@ class PromptAgent(Agent):
         self.prompt_constructor = prompt_constructor
         self.action_set_tag = action_set_tag
         self.captioning_fn = captioning_fn
+        # Enable schema output only for JSON prompts.
+        self.response_schema: dict[str, Any] | None = None
+        if prompt_constructor.is_structured:
+            schema_version = prompt_constructor.instruction["meta_data"].get("action_schema_version")
+            if schema_version != SCHEMA_VERSION:
+                raise ValueError("Unsupported structured action schema version")
+            if (lm_config.provider, lm_config.mode) not in {
+                ("openai", "chat"), ("google", "completion")
+            } or action_set_tag not in {"som", "id_accessibility_tree"}:
+                raise ValueError(
+                    "Structured actions require GPT chat or Gemini completion with ID-based actions"
+                )
+            self.response_schema = ACTION_RESPONSE_SCHEMA
 
         # Check if the model is multimodal.  The original benchmark only
         # recognized the historical ``gpt-4-vision-preview`` name.  Gateways
@@ -176,28 +194,35 @@ class PromptAgent(Agent):
         lm_config = self.lm_config
         n = 0
         while True:
-            response = call_llm(lm_config, prompt)
-            force_prefix = self.prompt_constructor.instruction[
-                "meta_data"
-            ].get("force_prefix", "")
-            response = f"{force_prefix}{response}"
+            response = call_llm(lm_config, prompt, response_schema=self.response_schema)
+            # A text prefix would make the JSON response invalid.
+            if self.response_schema is None:
+                force_prefix = self.prompt_constructor.instruction[
+                    "meta_data"
+                ].get("force_prefix", "")
+                response = f"{force_prefix}{response}"
             if output_response:
                 print(f'Agent: {response}', flush=True)
             n += 1
             try:
-                parsed_response = self.prompt_constructor.extract_action(
-                    response
-                )
-                if self.action_set_tag == "id_accessibility_tree":
-                    action = create_id_based_action(parsed_response)
-                elif self.action_set_tag == "playwright":
-                    action = create_playwright_action(parsed_response)
-                elif self.action_set_tag == "som":
-                    action = create_id_based_action(parsed_response)
-                else:
-                    raise ValueError(
-                        f"Unknown action type {self.action_set_tag}"
+                if self.response_schema is not None:
+                    # Convert JSON directly to a browser action.
+                    action = parse_action_response(
+                        response, self.prompt_constructor.map_url_to_local
                     )
+                else:
+                    parsed_response = self.prompt_constructor.extract_action(
+                        response
+                    )
+                    # Both action sets use element IDs.
+                    if self.action_set_tag in {"id_accessibility_tree", "som"}:
+                        action = create_id_based_action(parsed_response)
+                    elif self.action_set_tag == "playwright":
+                        action = create_playwright_action(parsed_response)
+                    else:
+                        raise ValueError(
+                            f"Unknown action type {self.action_set_tag}"
+                        )
                 action["raw_prediction"] = response
                 break
             except ActionParsingError as e:

@@ -19,7 +19,13 @@ APIInput = str | list[Any] | dict[str, Any]
 def call_llm(
     lm_config: lm_config.LMConfig,
     prompt: APIInput,
+    *,
+    response_schema: dict[str, Any] | None = None,
 ) -> str:
+    # Pass the schema only when JSON output is requested.
+    schema_kwargs = {}
+    if response_schema is not None:
+        schema_kwargs["response_schema"] = response_schema
     response: str
     if lm_config.provider == "openai":
         if lm_config.mode == "chat":
@@ -32,6 +38,7 @@ def call_llm(
                 context_length=lm_config.gen_config["context_length"],
                 max_tokens=lm_config.gen_config["max_tokens"],
                 stop_token=None,
+                **schema_kwargs,
             )
         elif lm_config.mode == "completion":
             assert isinstance(prompt, str)
@@ -66,6 +73,7 @@ def call_llm(
             prompt=prompt,
             engine=lm_config.model,
             max_tokens=lm_config.gen_config["max_tokens"],
+            **schema_kwargs,
         )
     else:
         raise NotImplementedError(

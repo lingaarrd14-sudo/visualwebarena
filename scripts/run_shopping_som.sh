@@ -5,7 +5,8 @@ provider="openai"
 model="gpt-6-luna"
 mode="chat"
 domain="shopping"
-instruction_path="agent/prompts/jsons/p_som_cot_id_actree_3s.json"
+# Select the prompt that enables JSON actions.
+instruction_path="agent/prompts/jsons/p_som_cot_id_actree_3s_json_cot.json"
 observation="image_som"
 action_set_tag="som"
 
@@ -28,6 +29,7 @@ while [ $start_idx -lt $max_idx ]
 do
     bash scripts/reset_shopping.sh
     bash prepare.sh
+    # Keep JSON results separate from the backtick runs.
     python run.py \
      --instruction_path $instruction_path \
      --test_start_idx $start_idx \
@@ -35,7 +37,7 @@ do
      --model $model \
      --provider $provider \
      --mode $mode \
-     --result_dir=cache/"${model}-${action_set_tag}-${domain}-${width}x${height}-${date}" \
+     --result_dir=cache/"${model}-${action_set_tag}-json-cot-${domain}-${width}x${height}-${date}" \
      --test_config_base_dir=config_files/vwa/test_shopping \
      --repeating_action_failure_th 5 --viewport_width $width --viewport_height $height \
      --action_set_tag $action_set_tag  --observation_type $observation

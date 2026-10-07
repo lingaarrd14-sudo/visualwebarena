@@ -40,7 +40,7 @@ every condition.
 | Viewport width and/or height | Task IDs and site snapshot |
 | Nothing else | Model and provider |
 |  | Prompt, action set, and observation type |
-|  | Step and output-token budgets |
+|  | Step limit and provider generation settings |
 |  | Evaluation model and environment URLs |
 
 Remote model APIs can remain nondeterministic even with a fixed seed. For a
@@ -55,8 +55,9 @@ rates and paired per-task outcome changes.
   classes.
 - Provider clients are initialized lazily, so a Gemini-only agent run does not
   require an OpenAI key at import time.
-- OpenAI chat and Gemini generation use seed `42`, medium reasoning, and a
-  default output budget of 384 tokens.
+- OpenAI chat and Gemini generation use seed `42` and medium reasoning.
+  `--max_tokens` defaults to 384 but is not sent to either API; these paths do
+  not set an output-token limit.
 - Dependencies are curated for the current Python 3.10/3.11 code instead of
   reproducing the upstream environment's complete historical `pip freeze`.
 
@@ -155,16 +156,30 @@ Some `fuzzy_match` and `ua_match` evaluations use the OpenAI model configured
 inside `evaluation_harness/helper_functions.py`. Those tasks require working
 OpenAI credentials even when the acting agent uses Gemini.
 
+## Action output
+
+`--instruction_path` selects the format. JSON prompts set
+`meta_data.output_format` to `json_schema`, so the runtime requests `reasoning`
+and one structured `action`. Two JSON prompts are available in `agent/prompts/jsons/`:
+
+- `p_multimodal_cot_id_actree_3s_json_cot.json`: multimodal accessibility-tree inputs.
+- `p_som_cot_id_actree_3s_json_cot.json`: SoM inputs.
+
+Use `--provider openai --mode chat` or `--provider google --mode completion`
+with a model that supports the schema. Original prompts keep backtick actions;
+evaluator calls stay free text. The three `scripts/run_*_som.sh` scripts select
+the SoM JSON prompt and write to separate `json-cot` result folders.
+
 ## Run a paired viewport experiment
 
-The example below changes only viewport height. Set `VWA_MODEL` to the exact
-model identifier used for the experiment.
+The example below uses SoM JSON actions and changes only viewport height.
+Set `VWA_MODEL` to the exact schema-capable model used for the experiment.
 
 ```bash
 export VWA_MODEL="replace-with-exact-model-id"
 
 COMMON_ARGS=(
-  --instruction_path agent/prompts/jsons/p_som_cot_id_actree_3s.json
+  --instruction_path agent/prompts/jsons/p_som_cot_id_actree_3s_json_cot.json
   --test_start_idx 0
   --test_end_idx 10
   --test_config_base_dir config_files/vwa/test_reddit
@@ -174,7 +189,6 @@ COMMON_ARGS=(
   --action_set_tag som
   --observation_type image_som
   --max_steps 30
-  --max_tokens 384
 )
 
 # Start the first condition from the benchmark snapshot.
@@ -214,10 +228,10 @@ Each result directory contains:
 - `config.json`: the effective experiment arguments, including viewport size.
 - `render_<task_id>.html`: the observation and action trajectory for a task.
 - `traces/<task_id>.zip`: the Playwright trace.
-- `log_<run_id>.jsonl`: execution logs as JSON Lines records containing a
-  timestamp and message.
-- `log_files.txt`: paths to execution logs containing `[Result] (PASS|FAIL)` and
-  the aggregate `Average score`.
+- `<result-directory-name>.jsonl`: task logs grouped in `messages` arrays,
+  written on completion or error, without timestamps.
+- `log_files.txt`: paths to timestamped `.log` files updated at each step,
+  including `[Result] (PASS|FAIL)` and the aggregate `Average score`.
 - `error.txt`: unhandled task errors, when present.
 
 For a single uninterrupted run, inspect the aggregate score with:
@@ -227,18 +241,9 @@ grep "Average score" "$(tail -n 1 results/reddit_1280x720/log_files.txt)"
 grep "Average score" "$(tail -n 1 results/reddit_1280x2048/log_files.txt)"
 ```
 
-Break down a run by task category with:
-
-```bash
-python scripts/calc_breakdown_sr.py \
-  --log_file "$(tail -n 1 results/reddit_1280x720/log_files.txt)" \
-  --config_file config_files/vwa/test_reddit.json
-```
-
-If a condition was resumed and therefore has multiple log files, merge those
-logs before calculating the breakdown. Do not compare only aggregate success
-rates: also report how many identical tasks changed from fail to pass or pass
-to fail between viewport conditions.
+For resumed runs, combine all log files when comparing per-task results.
+Report both aggregate success rates and how many tasks changed from fail to
+pass or pass to fail between viewport conditions.
 
 ## Current execution behavior
 

@@ -85,6 +85,18 @@ def get_action_description(
     """Generate the text version of the predicted actions to store in action history for prompt use.
     May contain hint information to recover from the failures"""
 
+    # Use JSON instructions when a structured response fails to parse.
+    if (
+        action_set_tag in {"som", "id_accessibility_tree"}
+        and action["action_type"] == ActionTypes.NONE
+        and prompt_constructor is not None
+        and prompt_constructor.is_structured
+    ):
+        return (
+            f'The previous prediction was {action["raw_prediction"]}. Its format was incorrect. '
+            'Return one JSON object with reasoning and action, matching the action schema. '
+        )
+
     match action_set_tag:
         case "id_accessibility_tree":
             text_meta_data = observation_metadata["text"]

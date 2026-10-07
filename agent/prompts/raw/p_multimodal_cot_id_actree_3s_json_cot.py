@@ -11,24 +11,24 @@ The previous action: This is the action you just performed. It may be helpful to
 The actions you can perform fall into several categories:
 
 Page Operation Actions:
-```click [id]```: This action clicks on an element with a specific id on the webpage.
-```type [id] [content]```: Use this to type the content into the field with id. By default, the "Enter" key is pressed after typing unless press_enter_after is set to 0, i.e., ```type [id] [content] [0]```.
-```hover [id]```: Hover over an element with id.
-```press [key_comb]```:  Simulates the pressing of a key combination on the keyboard (e.g., Ctrl+v).
-```scroll [down]``` or ```scroll [up]```: Scroll the page up or down.
+{"type": "click", "element_id": "id"}: This action clicks on an element with a specific id on the webpage.
+{"type": "type", "element_id": "id", "text": "content", "press_enter_after": true}: Use this to type the content into the field with id. Set press_enter_after to true to press the "Enter" key after typing, or false otherwise.
+{"type": "hover", "element_id": "id"}: Hover over an element with id.
+{"type": "press", "key_comb": "key_comb"}:  Simulates the pressing of a key combination on the keyboard (e.g., Ctrl+v).
+{"type": "scroll", "direction": "down"} or {"type": "scroll", "direction": "up"}: Scroll the page up or down.
 
 Tab Management Actions:
-```new_tab```: Open a new, empty browser tab.
-```tab_focus [tab_index]```: Switch the browser's focus to a specific tab using its index.
-```close_tab```: Close the currently active tab.
+{"type": "new_tab"}: Open a new, empty browser tab.
+{"type": "tab_focus", "tab_index": 0}: Switch the browser's focus to a specific tab using its index. Set tab_index to the target tab's index, starting from 0 for the first tab; 0 is only an example.
+{"type": "close_tab"}: Close the currently active tab.
 
 URL Navigation Actions:
-```goto [url]```: Navigate to a specific URL.
-```go_back```: Navigate to the previously viewed page.
-```go_forward```: Navigate to the next page (if a previous 'go_back' action was performed).
+{"type": "goto", "url": "url"}: Navigate to a specific URL.
+{"type": "go_back"}: Navigate to the previously viewed page.
+{"type": "go_forward"}: Navigate to the next page (if a previous 'go_back' action was performed).
 
 Completion Action:
-```stop [answer]```: Issue this action when you believe the task is complete. If the objective is to find a text-based answer, provide the answer in the bracket.
+{"type": "stop", "answer": "answer"}: Issue this action when you believe the task is complete. If the objective is to find a text-based answer, provide the answer in the answer field.
 
 Homepage:
 If you want to visit other websites, check out the homepage at http://homepage.com. It has a list of websites you can visit.
@@ -38,8 +38,8 @@ To be successful, it is very important to follow the following rules:
 1. You should only issue an action that is valid given the current observation
 2. You should only issue one action at a time.
 3. You should follow the examples to reason step by step and then issue the next action.
-4. Generate the action in the correct format. Start with a "In summary, the next action I will perform is" phrase, followed by action inside ``````. For example, "In summary, the next action I will perform is ```click [1234]```".
-5. Issue stop action when you think you have achieved the objective. Don't generate anything after stop.""",
+4. Generate the response in the correct format. Return exactly one JSON object with "reasoning" followed by "action". Put your step-by-step explanation in "reasoning" and end it with "In summary, the next action I will perform is". Put the next action object in "action".
+5. Issue the stop action when you think you have achieved the objective. Don't generate anything after the JSON object.""" ,
 	"examples": [
 		(
 			"""OBSERVATION:
@@ -51,7 +51,7 @@ To be successful, it is very important to follow the following rules:
 URL: http://onestopmarket.com/office-products/office-electronics.html
 OBJECTIVE: What is the price of HP Inkjet Fax Machine?
 PREVIOUS ACTION: None""",
-			"Let's think step-by-step. This page list the information of HP Inkjet Fax Machine, which is the product identified in the objective. Its price is $279.49. I think I have achieved the objective. I will issue the stop action with the answer. In summary, the next action I will perform is ```stop [$279.49]```",
+			r"""{"reasoning": "Let's think step-by-step. This page list the information of HP Inkjet Fax Machine, which is the product identified in the objective. Its price is $279.49. I think I have achieved the objective. I will issue the stop action with the answer. In summary, the next action I will perform is", "action": {"type": "stop", "answer": "$279.49"}}""",
             "agent/prompts/multimodal_examples/multimodal_example1.png"
 		),
 		(
@@ -76,7 +76,7 @@ PREVIOUS ACTION: None""",
 URL: http://reddit.com
 OBJECTIVE: Tell me what the top comment on the croissant post says.
 PREVIOUS ACTION: None""",
-			"Let's think step-by-step. This page has a post titled '[I ate] Maple Pecan Croissant', which is the post mentioned in the objective. In order to find the top comment, I will navigate into the comments section of the post. In summary, the next action I will perform is ```click [1499]```",
+			r"""{"reasoning": "Let's think step-by-step. This page has a post titled '[I ate] Maple Pecan Croissant', which is the post mentioned in the objective. In order to find the top comment, I will navigate into the comments section of the post. In summary, the next action I will perform is", "action": {"type": "click", "element_id": "1499"}}""",
             "agent/prompts/multimodal_examples/multimodal_example2.png"
 		),
 		(
@@ -98,7 +98,7 @@ PREVIOUS ACTION: None""",
 URL: http://classifieds.com
 OBJECTIVE: Help me find the cheapest dark colored guitar.
 PREVIOUS ACTION: None""",
-			"Let's think step-by-step. The objective is to find the cheapest dark colored guitar on the site. The site has a search box whose ID is [81]. I can search for guitars by entering \"guitar\". I can submit this by pressing the Enter afterwards. In summary, the next action I will perform is ```type [81] [guitar] [1]```",
+			r"""{"reasoning": "Let's think step-by-step. The objective is to find the cheapest dark colored guitar on the site. The site has a search box whose ID is [81]. I can search for guitars by entering \"guitar\". I can submit this by pressing the Enter afterwards. In summary, the next action I will perform is", "action": {"type": "type", "element_id": "81", "text": "guitar", "press_enter_after": true}}""",
             "agent/prompts/multimodal_examples/multimodal_example3.png"
 		),
 	],
@@ -112,7 +112,7 @@ PREVIOUS ACTION: {previous_action}""",
 		"action_type": "id_accessibility_tree",
 		"keywords": ["url", "objective", "observation", "previous_action"],
 		"prompt_constructor": "MultimodalCoTPromptConstructor",
-		"answer_phrase": "In summary, the next action I will perform is",
-		"action_splitter": "```"
+		"output_format": "json_schema",
+		"action_schema_version": "browser_action_reasoning_v1"
 	},
 }

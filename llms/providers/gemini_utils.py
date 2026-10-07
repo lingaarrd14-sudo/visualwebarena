@@ -3,6 +3,7 @@
 import random
 import time
 from functools import lru_cache
+from typing import Any
 
 from google import genai
 from google.genai import errors, types
@@ -62,6 +63,8 @@ def generate_from_gemini_completion(
     prompt: list[str | types.Part],
     engine: str,
     max_tokens: int,
+    *,
+    response_schema: dict[str, Any] | None = None,
 ) -> str:
     """Generate a multimodal response with the model selected by the CLI.
 
@@ -98,6 +101,10 @@ def generate_from_gemini_completion(
         ),
         safety_settings=safety_config,
     )
+    # Request JSON output that follows the action schema.
+    if response_schema is not None:
+        generation_config.response_mime_type = "application/json"
+        generation_config.response_json_schema = response_schema
 
     # Unlike the old hard-coded gemini-pro-vision instance, this uses the
     # model passed through --model (for example, gemini-3.8-flash).
