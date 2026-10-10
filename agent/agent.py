@@ -195,6 +195,10 @@ class PromptAgent(Agent):
         n = 0
         while True:
             response = call_llm(lm_config, prompt, response_schema=self.response_schema)
+            # The original action path formats a missing response as "None"
+            # before treating it as an unparseable action.
+            if response is None:
+                response = "None"
             # A text prefix would make the JSON response invalid.
             if self.response_schema is None:
                 force_prefix = self.prompt_constructor.instruction[

@@ -1,5 +1,6 @@
 """Tools to generate responses with the Google Gen AI SDK."""
 
+import logging
 import random
 import time
 from functools import lru_cache
@@ -24,16 +25,11 @@ def _get_client() -> genai.Client:
 def retry_with_exponential_backoff(  # type: ignore
     func,
     initial_delay: float = 1,
-    exponential_base: float = 2,
+    exponential_base: float = 1,
     jitter: bool = True,
-    max_retries: int = 3,
+    max_retries: int = 10,
 ):
-    """Retry only rate limits and transient server failures.
-
-    Invalid requests are raised immediately because retrying them with the
-    same prompt and configuration cannot succeed. The base-2 backoff and
-    three-retry default match the OpenAI provider's retry policy.
-    """
+    """Retry a function with exponential backoff."""
 
     def wrapper(*args, **kwargs):  # type: ignore
         num_retries = 0
@@ -43,14 +39,14 @@ def retry_with_exponential_backoff(  # type: ignore
             try:
                 return func(*args, **kwargs)
             except errors.APIError as exc:
-                if exc.code not in {429, 500, 502, 503, 504}:
+                if exc.code != 400 or exc.status != "INVALID_ARGUMENT":
                     raise
 
                 num_retries += 1
                 if num_retries > max_retries:
-                    raise RuntimeError(
+                    raise Exception(
                         f"Maximum number of retries ({max_retries}) exceeded."
-                    ) from exc
+                    )
 
                 delay *= exponential_base * (1 + jitter * random.random())
                 time.sleep(delay)
@@ -113,10 +109,39 @@ def generate_from_gemini_completion(
         contents=prompt,
         config=generation_config,
     )
-    # response.text can be absent when Gemini returns no text candidate.
-    if response.text is None:
-        raise RuntimeError("Gemini returned no text response.")
-    return response.text
+    answer = response.text
+    if answer is None:
+        candidates = response.candidates or []
+        try:
+            block_reason = (
+                response.prompt_feedback.block_reason
+                if response.prompt_feedback else None
+            )
+            logging.getLogger("logger").warning(
+                "Gemini returned no text response: id=%s, block_reason=%s, "
+                "candidate_count=%d, finish_reasons=%s",
+                response.response_id,
+                block_reason,
+                len(candidates),
+                [candidate.finish_reason for candidate in candidates],
+            )
+        except Exception:
+            # Diagnostic failures must not change response handling.
+            pass
+
+        # Match the no-text exceptions from Vertex AI SDK 1.38.1.
+        if len(candidates) > 1:
+            raise ValueError("Multiple candidates are not supported")
+        if not candidates:
+            raise IndexError("list index out of range")
+        content = candidates[0].content
+        parts = content.parts if content is not None else None
+        if parts and len(parts) > 1:
+            raise ValueError("Multiple content parts are not supported.")
+        if not parts:
+            raise ValueError("Content has no parts.")
+        raise ValueError("Part has no text.")
+    return answer
 
 
 # Removed the legacy fake_generate_from_gemini_chat_completion helper: it was
