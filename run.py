@@ -503,18 +503,20 @@ def test(
                 page=env.page
             )
 
-            # Save before counting to avoid counting trace errors twice.
-            if args.save_trace_enabled:
-                env.save_trace(
-                    Path(args.result_dir) / "traces" / f"{task_id}.zip"
-                )
-
             scores.append(score)
 
             if score == 1:
                 logger.info(f"[Result] (PASS) {config_file}")
             else:
                 logger.info(f"[Result] (FAIL) {config_file}")
+
+            if args.save_trace_enabled:
+                try:
+                    env.save_trace(
+                        Path(args.result_dir) / "traces" / f"{task_id}.zip"
+                    )
+                except Exception as e:
+                    logger.warning(f"[Trace Error] {config_file}: {e!r}")
         except openai.OpenAIError as e:
             error_count += 1
             logger.info(f"[OpenAI Error] {repr(e)}")
