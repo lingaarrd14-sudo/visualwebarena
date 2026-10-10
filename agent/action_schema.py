@@ -61,6 +61,27 @@ _FACTORIES = {
     "stop": actions.create_stop_action,
 }
 
+# Fill gaps in the legacy key-name mapping for JSON actions.
+_KEY_ALIASES = {
+    "ctrl": "Control",
+    "control": "Control",
+    "shift": "Shift",
+    "alt": "Alt",
+    "esc": "Escape",
+    "space": "Space",
+    "up": "ArrowUp",
+    "down": "ArrowDown",
+    "left": "ArrowLeft",
+    "right": "ArrowRight",
+    "cmd": "Meta",
+    "command": "Meta",
+}
+
+
+def _normalize_key_comb(key_comb: str) -> str:
+    """Normalize named keys while preserving literal characters and plus signs."""
+    return "+".join(_KEY_ALIASES.get(key.lower(), key) for key in key_comb.split("+"))
+
 
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
@@ -124,6 +145,8 @@ def parse_action_response(
     if kind == "type":
         if arguments.pop("press_enter_after"):
             arguments["text"] += "\n"
+    elif kind == "press":
+        arguments["key_comb"] = _normalize_key_comb(arguments["key_comb"])
     elif kind == "tab_focus":
         arguments["page_number"] = arguments.pop("tab_index")
     result = _FACTORIES[kind](**arguments)
