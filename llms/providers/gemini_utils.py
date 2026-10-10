@@ -109,11 +109,10 @@ def generate_from_gemini_completion(
         contents=prompt,
         config=generation_config,
     )
-    # Record no-text diagnostics without changing the agent's action path.
     answer = response.text
     if answer is None:
+        candidates = response.candidates or []
         try:
-            candidates = response.candidates or []
             block_reason = (
                 response.prompt_feedback.block_reason
                 if response.prompt_feedback else None
@@ -127,8 +126,21 @@ def generate_from_gemini_completion(
                 [candidate.finish_reason for candidate in candidates],
             )
         except Exception:
-            # Diagnostics must not replace the model's original return value.
+            # Diagnostic failures must not change response handling.
             pass
+
+        # Match the no-text exceptions from Vertex AI SDK 1.38.1.
+        if len(candidates) > 1:
+            raise ValueError("Multiple candidates are not supported")
+        if not candidates:
+            raise IndexError("list index out of range")
+        content = candidates[0].content
+        parts = content.parts if content is not None else None
+        if parts and len(parts) > 1:
+            raise ValueError("Multiple content parts are not supported.")
+        if not parts:
+            raise ValueError("Content has no parts.")
+        raise ValueError("Part has no text.")
     return answer
 
 

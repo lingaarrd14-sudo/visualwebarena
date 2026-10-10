@@ -511,12 +511,9 @@ def test(
                 logger.info(f"[Result] (FAIL) {config_file}")
 
             if args.save_trace_enabled:
-                try:
-                    env.save_trace(
-                        Path(args.result_dir) / "traces" / f"{task_id}.zip"
-                    )
-                except Exception as e:
-                    logger.warning(f"[Trace Error] {config_file}: {e!r}")
+                env.save_trace(
+                    Path(args.result_dir) / "traces" / f"{task_id}.zip"
+                )
         except openai.OpenAIError as e:
             error_count += 1
             logger.info(f"[OpenAI Error] {repr(e)}")
