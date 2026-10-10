@@ -302,6 +302,31 @@ def generate_from_openai_chat_completion(
         seed=42,
         **response_format,
     )
+    # Record diagnostic metadata without changing response handling or retries.
+    try:
+        choice = response.choices[0] if response.choices else None
+        content = choice.message.content if choice else None
+        refusal = getattr(choice.message, "refusal", None) if choice else None
+        finish_reason = getattr(choice, "finish_reason", None)
+        if not content or finish_reason in {"content_filter", "length"} or refusal:
+            usage = getattr(response, "usage", None)
+            reasoning_tokens = getattr(
+                getattr(usage, "completion_tokens_details", None), "reasoning_tokens", None
+            )
+            logging.getLogger("logger").warning(
+                "OpenAI response diagnostics: id=%s, choices=%s, finish_reason=%s, "
+                "refusal=%r, content=%s, completion_tokens=%s, reasoning_tokens=%s",
+                getattr(response, "id", None),
+                len(response.choices),
+                finish_reason,
+                refusal,
+                "none" if content is None else "empty" if not content else "present",
+                getattr(usage, "completion_tokens", None),
+                reasoning_tokens,
+            )
+    except Exception:
+        # Diagnostics must not replace the original return value or exception.
+        pass
     answer: str = response.choices[0].message.content
     return answer
 

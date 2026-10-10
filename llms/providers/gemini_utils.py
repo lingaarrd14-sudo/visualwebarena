@@ -107,15 +107,21 @@ def generate_from_gemini_completion(
         generation_config.response_json_schema = response_schema
 
     # Unlike the old hard-coded gemini-pro-vision instance, this uses the
-    # model passed through --model (for example, gemini-3.8-flash).
+    # model passed through --model (for example, gemini-3.5-flash-lite).
     response = _get_client().models.generate_content(
         model=engine,
         contents=prompt,
         config=generation_config,
     )
-    # response.text can be absent when Gemini returns no text candidate.
+    # Keep block/finish reasons to diagnose no-text responses in error.txt.
     if response.text is None:
-        raise RuntimeError("Gemini returned no text response.")
+        candidates = response.candidates or []
+        block_reason = response.prompt_feedback.block_reason if response.prompt_feedback else None
+        raise RuntimeError(
+            f"Gemini returned no text response: id={response.response_id}, "
+            f"block_reason={block_reason}, candidate_count={len(candidates)}, "
+            f"finish_reasons={[c.finish_reason for c in candidates]}"
+        )
     return response.text
 
 
