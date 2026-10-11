@@ -73,6 +73,7 @@ python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
+python -m nltk.downloader -d .venv/nltk_data punkt_tab
 playwright install chromium
 pip install -e .
 ```
@@ -144,6 +145,51 @@ export OPENAI_API_KEY="<api-key>"
 # Optional:
 export OPENAI_BASE_URL="<compatible-api-base-url>"
 ```
+
+### Use a Runpod GPU only for BLIP-2
+
+Keep the websites, Docker reset scripts, browser, and `run.py` on the local
+machine. Only BLIP-2 captioning and VQA requests go to the GPU Pod. The Pod
+does not need access to the local websites or API keys.
+
+1. Copy `scripts/blip2_server.py` and `requirements-blip2-server.txt` into
+   `/workspace` on the Pod. Check its CUDA-enabled PyTorch with
+   `python -c 'import torch; print(torch.cuda.is_available())'`.
+2. On the Pod, use a virtual environment that can access its existing PyTorch,
+   then start the server:
+
+   ```bash
+   python -m venv --system-site-packages /workspace/.venv
+   /workspace/.venv/bin/python -m pip install -r /workspace/requirements-blip2-server.txt
+   /workspace/.venv/bin/python -u /workspace/blip2_server.py --port 8765
+   ```
+
+   The server loads `Salesforce/blip2-flan-t5-xl` before it begins listening.
+   It binds only to `127.0.0.1` on the Pod.
+3. In a separate **local** terminal, use the IP, port, and private-key path
+   shown under the Pod's **SSH over exposed TCP** connection details:
+
+   ```bash
+   ssh -N -o ExitOnForwardFailure=yes \
+     -L 127.0.0.1:8765:127.0.0.1:8765 \
+     -p <SSH_PORT> -i <PRIVATE_KEY_PATH> root@<POD_IP>
+   ```
+
+4. Back in the local benchmark terminal, check the forwarded server and set
+   its URL before running the existing scripts:
+
+   ```bash
+   source .venv/bin/activate
+   set -a; source .env; set +a  # If site URLs and API keys are in .env
+   curl --fail http://127.0.0.1:8765/health
+   export VWA_CAPTIONER_URL=http://127.0.0.1:8765
+   bash scripts/run_reddit_som.sh
+   ```
+
+   `/health` must report `"cuda": true` and the intended GPU/model. If the
+   tunnel or server fails, `run.py` stops instead of loading BLIP-2 locally.
+   Existing generated VWA task configs can be reused if their site URLs still
+   point to the local Docker websites.
 
 If an OpenAI-compatible multimodal model name does not contain the historical
 `gpt-4-...-vision` pattern, opt into image inputs explicitly:

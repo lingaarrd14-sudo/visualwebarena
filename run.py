@@ -330,7 +330,7 @@ def test(
     ]:
         device = torch.device("cuda") if torch.cuda.is_available() else "cpu"
         dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-        caption_image_fn = image_utils.get_captioning_fn(
+        caption_image_fn = image_utils.get_configured_captioning_fn(
             device, dtype, args.captioning_model
         )
     else:
@@ -344,7 +344,7 @@ def test(
         ):
             eval_caption_image_fn = caption_image_fn
         else:
-            eval_caption_image_fn = image_utils.get_captioning_fn(
+            eval_caption_image_fn = image_utils.get_configured_captioning_fn(
                 args.eval_captioning_model_device,
                 torch.float16
                 if (
