@@ -58,7 +58,7 @@ rates and paired per-task outcome changes.
 - OpenAI chat and Gemini generation use seed `42` and medium reasoning.
   `--max_tokens` defaults to 384 but is not sent to either API; these paths do
   not set an output-token limit.
-- Dependencies are curated for the current Python 3.10/3.11 code instead of
+- Dependencies are curated for the current Python 3.10.9 environment instead of
   reproducing the upstream environment's complete historical `pip freeze`.
 
 The task definitions, browser interaction logic, website setup, prompt assets,
@@ -66,10 +66,10 @@ trajectory rendering, and success evaluators remain based on VisualWebArena.
 
 ## Installation
 
-Python 3.10 or 3.11 is recommended.
+Python 3.10.9 is recommended to match the original environment.
 
 ```bash
-python3.11 -m venv .venv
+python3.10 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
@@ -156,11 +156,11 @@ does not need access to the local websites or API keys.
    `/workspace` on a CUDA GPU Pod with a CUDA 12.8-compatible NVIDIA driver.
    The remote requirements use the same BLIP-2 packages and PyTorch 2.7.1
    CUDA 12.8 runtime as the benchmark environment.
-2. On the Pod, create an isolated virtual environment, install the pinned
-   captioning stack, and start the server:
+2. On the Pod, use Python 3.10.9 to create an isolated virtual environment,
+   install the pinned captioning stack, and start the server:
 
    ```bash
-   python3.11 -m venv /workspace/.venv
+   python3.10 -m venv /workspace/.venv
    /workspace/.venv/bin/python -m pip install -r /workspace/requirements-blip2-server.txt
    /workspace/.venv/bin/python -c 'import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())'
    /workspace/.venv/bin/python -u /workspace/blip2_server.py --port 8765
