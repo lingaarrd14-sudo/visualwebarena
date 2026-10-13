@@ -13,14 +13,22 @@ from transformers import (
     Blip2Processor,
 )
 
+# Latest model revision available before the original VisualWebArena release.
+BLIP2_REVISION = "e5025a34e3e769e72e2aab7f7bfd00bc84d5fd77"
+
 
 def get_captioning_fn(
     device, dtype, model_name: str = "Salesforce/blip2-flan-t5-xl"
 ) -> callable:
     if "blip2" in model_name:
-        captioning_processor = Blip2Processor.from_pretrained(model_name)
+        captioning_processor = Blip2Processor.from_pretrained(
+            model_name, revision=BLIP2_REVISION
+        )
         captioning_model = Blip2ForConditionalGeneration.from_pretrained(
-            model_name, torch_dtype=dtype
+            model_name,
+            revision=BLIP2_REVISION,
+            torch_dtype=dtype,
+            low_cpu_mem_usage=True,
         )
     else:
         raise NotImplementedError(
@@ -85,10 +93,15 @@ def get_remote_captioning_fn(base_url: str, model_name: str) -> callable:
         ) from exc
     if not isinstance(health, dict):
         raise RuntimeError("BLIP-2 server returned invalid health data")
-    if health.get("model") != model_name or not health.get("cuda"):
+    if (
+        health.get("model") != model_name
+        or health.get("revision") != BLIP2_REVISION
+        or not health.get("cuda")
+    ):
         raise RuntimeError(
             f"BLIP-2 server has model={health.get('model')!r}, "
-            f"cuda={health.get('cuda')!r}; expected model={model_name!r} on CUDA"
+            f"revision={health.get('revision')!r}, cuda={health.get('cuda')!r}; "
+            f"expected model={model_name!r}, revision={BLIP2_REVISION!r} on CUDA"
         )
 
     def caption_images(

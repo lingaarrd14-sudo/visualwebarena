@@ -1,5 +1,10 @@
-# Install on a Runpod PyTorch Pod with a working CUDA-enabled torch already present.
-accelerate==1.15.0
+# BLIP-2 caption server dependencies
+# Model-facing packages retain the VisualWebArena release versions; PyTorch
+# matches the tested runtime used by this benchmark.
+
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.7.1
+transformers==4.34.0
+accelerate==0.22.0
+sentencepiece==0.1.99
 Pillow==10.0.1
-sentencepiece==0.2.2
-transformers==4.57.3

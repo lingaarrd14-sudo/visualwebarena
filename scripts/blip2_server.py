@@ -15,6 +15,8 @@ from typing import Callable
 from PIL import Image
 
 MAX_BODY_BYTES = 64 * 1024 * 1024
+# Latest model revision available before the original VisualWebArena release.
+BLIP2_REVISION = "e5025a34e3e769e72e2aab7f7bfd00bc84d5fd77"
 
 
 def make_handler(caption_fn: Callable, model_name: str, gpu_name: str):
@@ -31,7 +33,15 @@ def make_handler(caption_fn: Callable, model_name: str, gpu_name: str):
             if self.path != "/health":
                 self.send_json(404, {"error": "not found"})
                 return
-            self.send_json(200, {"model": model_name, "cuda": True, "gpu": gpu_name})
+            self.send_json(
+                200,
+                {
+                    "model": model_name,
+                    "revision": BLIP2_REVISION,
+                    "cuda": True,
+                    "gpu": gpu_name,
+                },
+            )
 
         def do_POST(self) -> None:
             if self.path != "/caption":
@@ -93,9 +103,14 @@ def main() -> None:
     gpu_name = torch.cuda.get_device_name(0)
     if "blip2" not in args.model.lower():
         parser.error("Only BLIP-2 models are supported")
-    processor = Blip2Processor.from_pretrained(args.model)
+    processor = Blip2Processor.from_pretrained(
+        args.model, revision=BLIP2_REVISION
+    )
     model = Blip2ForConditionalGeneration.from_pretrained(
-        args.model, torch_dtype=torch.float16
+        args.model,
+        revision=BLIP2_REVISION,
+        torch_dtype=torch.float16,
+        low_cpu_mem_usage=True,
     ).to("cuda")
     model.eval()
 

@@ -10,8 +10,8 @@ instruction_path="agent/prompts/jsons/p_som_cot_id_actree_3s_json_cot.json"
 observation="image_som"
 action_set_tag="som"
 
-# Empty: run BLIP-2 locally (GPU if available). Set to the SSH-forwarded URL for a remote GPU.
-export VWA_CAPTIONER_URL="http://127.0.0.1:8765"
+# Empty: run BLIP-2 locally (GPU if available). Set to the SSH-forwarded URL(http://127.0.0.1:8765) for a remote GPU.
+export VWA_CAPTIONER_URL=""
 
 #viewport
 width=1024

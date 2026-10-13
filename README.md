@@ -73,7 +73,7 @@ python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-python -m nltk.downloader -d .venv/nltk_data punkt_tab
+python -m nltk.downloader -d .venv/nltk_data punkt
 playwright install chromium
 pip install -e .
 ```
@@ -153,18 +153,21 @@ machine. Only BLIP-2 captioning and VQA requests go to the GPU Pod. The Pod
 does not need access to the local websites or API keys.
 
 1. Copy `scripts/blip2_server.py` and `requirements-blip2-server.txt` into
-   `/workspace` on the Pod. Check its CUDA-enabled PyTorch with
-   `python -c 'import torch; print(torch.cuda.is_available())'`.
-2. On the Pod, use a virtual environment that can access its existing PyTorch,
-   then start the server:
+   `/workspace` on a CUDA GPU Pod with a CUDA 12.8-compatible NVIDIA driver.
+   The remote requirements use the same BLIP-2 packages and PyTorch 2.7.1
+   CUDA 12.8 runtime as the benchmark environment.
+2. On the Pod, create an isolated virtual environment, install the pinned
+   captioning stack, and start the server:
 
    ```bash
-   python -m venv --system-site-packages /workspace/.venv
+   python3.11 -m venv /workspace/.venv
    /workspace/.venv/bin/python -m pip install -r /workspace/requirements-blip2-server.txt
+   /workspace/.venv/bin/python -c 'import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())'
    /workspace/.venv/bin/python -u /workspace/blip2_server.py --port 8765
    ```
 
-   The server loads `Salesforce/blip2-flan-t5-xl` before it begins listening.
+   The server loads `Salesforce/blip2-flan-t5-xl` at the model revision pinned
+   in `scripts/blip2_server.py` before it begins listening.
    It binds only to `127.0.0.1` on the Pod.
 3. In a separate **local** terminal, use the IP, port, and private-key path
    shown under the Pod's **SSH over exposed TCP** connection details:

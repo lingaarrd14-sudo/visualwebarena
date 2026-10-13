@@ -117,13 +117,20 @@ def generate_from_gemini_completion(
                 response.prompt_feedback.block_reason
                 if response.prompt_feedback else None
             )
+            block_reason_message = (
+                getattr(response.prompt_feedback, "block_reason_message", None)
+                if response.prompt_feedback else None
+            )
             logging.getLogger("logger").warning(
                 "Gemini returned no text response: id=%s, block_reason=%s, "
-                "candidate_count=%d, finish_reasons=%s",
+                "block_reason_message=%r, candidate_count=%d, "
+                "finish_reasons=%s, finish_messages=%r",
                 response.response_id,
                 block_reason,
+                block_reason_message,
                 len(candidates),
                 [candidate.finish_reason for candidate in candidates],
+                [getattr(candidate, "finish_message", None) for candidate in candidates],
             )
         except Exception:
             # Diagnostic failures must not change response handling.
