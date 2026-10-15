@@ -1,4 +1,5 @@
 import base64
+import json
 import os
 from io import BytesIO
 from typing import List
@@ -15,6 +16,8 @@ from transformers import (
 
 # Latest model revision available before the original VisualWebArena release.
 BLIP2_REVISION = "e5025a34e3e769e72e2aab7f7bfd00bc84d5fd77"
+REMOTE_CAPTION_MAX_BODY_BYTES = 64 * 1024 * 1024
+REMOTE_CAPTION_BATCH_SIZE = 2
 
 
 def get_captioning_fn(
@@ -109,34 +112,61 @@ def get_remote_captioning_fn(base_url: str, model_name: str) -> callable:
         prompt: List[str] = None,
         max_new_tokens: int = 32,
     ) -> List[str]:
+        if prompt is not None and len(prompt) != len(images):
+            raise ValueError("Number of images and prompts must match")
+
         encoded_images = []
         for image in images:
             buffer = BytesIO()
             image.convert("RGB").save(buffer, format="PNG")
             encoded_images.append(base64.b64encode(buffer.getvalue()).decode("ascii"))
 
-        try:
-            response = requests.post(
-                f"{base_url}/caption",
-                json={
+        captions = []
+        start = 0
+        while start < len(encoded_images):
+            end = min(start + REMOTE_CAPTION_BATCH_SIZE, len(encoded_images))
+            while True:
+                request_body = json.dumps({
                     "model": model_name,
-                    "images": encoded_images,
-                    "prompt": prompt,
+                    "images": encoded_images[start:end],
+                    "prompt": prompt[start:end] if prompt is not None else None,
                     "max_new_tokens": max_new_tokens,
-                },
-                timeout=300,
-            )
-            response.raise_for_status()
-            result = response.json()
-        except (requests.RequestException, ValueError) as exc:
-            raise RuntimeError("Remote BLIP-2 caption request failed") from exc
-        if not isinstance(result, dict):
-            raise RuntimeError("Remote BLIP-2 server returned invalid JSON")
-        captions = result.get("captions")
-        if not isinstance(captions, list) or len(captions) != len(images) or not all(
-            isinstance(caption, str) for caption in captions
-        ):
-            raise RuntimeError("Remote BLIP-2 server returned invalid captions")
+                }).encode("utf-8")
+                if len(request_body) <= REMOTE_CAPTION_MAX_BODY_BYTES:
+                    break
+                if end - start == 1:
+                    raise RuntimeError(
+                        f"Image {start} exceeds the BLIP-2 request size limit"
+                    )
+                end -= 1
+
+            try:
+                response = requests.post(
+                    f"{base_url}/caption",
+                    data=request_body,
+                    headers={"Content-Type": "application/json"},
+                    timeout=300,
+                )
+                response.raise_for_status()
+                result = response.json()
+            except requests.HTTPError as exc:
+                detail = response.text[:500]
+                raise RuntimeError(
+                    f"Remote BLIP-2 caption request failed: {detail}"
+                ) from exc
+            except (requests.RequestException, ValueError) as exc:
+                raise RuntimeError("Remote BLIP-2 caption request failed") from exc
+            if not isinstance(result, dict):
+                raise RuntimeError("Remote BLIP-2 server returned invalid JSON")
+            batch_captions = result.get("captions")
+            if (
+                not isinstance(batch_captions, list)
+                or len(batch_captions) != end - start
+                or not all(isinstance(caption, str) for caption in batch_captions)
+            ):
+                raise RuntimeError("Remote BLIP-2 server returned invalid captions")
+            captions.extend(batch_captions)
+            start = end
         return captions
 
     return caption_images
